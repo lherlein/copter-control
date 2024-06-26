@@ -49,7 +49,7 @@ The derivative of the state vector, `x_dot`, describe the change of state with t
 
 The control system (very basic) block diagram is:
 
-![Control Block Diagram](./diagrams/pitchroll-current-control.svg)
+![Control Block Diagram](./diagrams/pitchroll-current-control.png)
 
 Using this control with the above gains, and the linearized plant equations, we see the following behavior of the drone for a roll disturbance of 0.1 rads.
 
