@@ -87,15 +87,24 @@ for i in t:
   del_phi = roll_pid(state[PHI][index-1])
   del_theta = pitch_pid(state[THETA][index-1])
 
-  print("Roll: ", stateLin[PHI][index-1], "Pitch: ", stateLin[THETA][index-1], "del_phi: ", del_phi, "del_theta: ", del_theta)
+  del_phi_lin = roll_pid(stateLin[PHI][index-1])
+  del_theta_lin = pitch_pid(stateLin[THETA][index-1])
+
+  #print("Roll: ", stateLin[PHI][index-1], "Pitch: ", stateLin[THETA][index-1], "del_phi: ", del_phi, "del_theta: ", del_theta)
 
   del_Lc = Ixx * del_phi * Tdelt
   del_Mc = Iyy * del_theta * Tdelt
 
+  del_Lc_lin = Ixx * del_phi_lin * Tdelt
+  del_Mc_lin = Iyy * del_theta_lin * Tdelt
+
   momentsc = np.array([del_Lc, del_Mc, 0])
+  momentscLin = np.array([del_Lc_lin, del_Mc_lin, 0])
   motorscI = np.dot(c2m.T, momentsc) # motor thrust
+  motorscILin = np.dot(c2m.T, momentscLin) # motor thrust
 
   motorsc[:,index] = motorscI
+  motorscLin[:,index] = motorscILin
 
   # Update drone state
   state[:,index] = DroneState(state[:,index-1], motorscI).update()
