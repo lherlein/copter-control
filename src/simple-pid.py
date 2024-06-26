@@ -108,7 +108,7 @@ for i in t:
 
   # Update drone state
   state[:,index] = DroneState(state[:,index-1], motorscI).update()
-  stateLin[:,index] = DroneStateLinear(state[:,index-1], motorscI).update()
+  stateLin[:,index] = DroneStateLinear(stateLin[:,index-1], motorscI).update()
 
   index += 1
   time.sleep(Tdelt)

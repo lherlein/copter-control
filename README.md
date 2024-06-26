@@ -101,8 +101,6 @@ Using this control with the above gains, and the linearized plant equations, we 
 
 <img src="./plots/simple-pid-motor-speeds.png" alt="simple-pid-motor-forces" width="800">
 
-This is currently a WIP. I'm not sure why the velocity and position graphs look/are the same. Very odd
-
 #### Thrust Control
 
 not started
