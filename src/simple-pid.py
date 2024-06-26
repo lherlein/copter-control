@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from simple_pid import PID
-from lib.droneState import DroneState
+from lib.droneState import DroneStateLinear
 import json
 import time
 
@@ -25,14 +25,14 @@ c2m = np.array([[-r, -r, r, r], [r, -r, -r, r], [1, -1, 1, -1]])
 #s = control.TransferFunction.s
 
 Kp = 5 # Proportional Gain
-Ti = .1 # Integral Time Constant
-Td = .5 # Derivative Time Constant
+Ti = 100 # Integral Time Constant
+Td = 10 # Derivative Time Constant
 
 desired_roll = 0 # Desired Roll Angle
 desired_pitch = 0 # Desired Pitch Angle
 
-roll_pid = PID(Kp, Ti, Td, setpoint=desired_roll)
-pitch_pid = PID(Kp, Ti, Td, setpoint=desired_pitch)
+roll_pid = PID(Kp, Kp/Ti, Kp/Td, setpoint=desired_roll)
+pitch_pid = PID(Kp, Kp/Ti, Kp/Td, setpoint=desired_pitch)
 
 #G = Kp * (1 + (1/(Ti*s)) + Td*s) # PID Transfer Function
 
@@ -94,7 +94,7 @@ for i in t:
   motorsc[:,index] = motorscI
 
   # Update drone state
-  state[:,index] = DroneState(state[:,index-1], motorscI).update()
+  state[:,index] = DroneStateLinear(state[:,index-1], motorscI).update()
 
   index += 1
   time.sleep(Tdelt)
@@ -108,12 +108,12 @@ plt.figure(1)
 plt.plot(t, state[PHI][:-1], label='Roll')
 plt.plot(t, state[THETA][:-1], label='Pitch')
 plt.plot(t, state[PSI][:-1], label='Yaw')
-plt.title('Drone Attitude')
+plt.title('Drone Attitude -linear')
 plt.xlabel('Time [s]')
 plt.ylabel('Angle [rad]')
 plt.legend()
 plt.grid()
-plt.savefig("plots/simple-pid-attitude.png")
+plt.savefig("plots/simple-pid-attitude-linear.png")
 plt.close()
 
 # plot x,y,z
@@ -122,12 +122,12 @@ plt.figure(2)
 plt.plot(t, state[X][:-1], label='X')
 plt.plot(t, state[Y][:-1], label='Y')
 plt.plot(t, state[Z][:-1], label='Z')
-plt.title('Drone Position')
+plt.title('Drone Position -linear')
 plt.xlabel('Time [s]')
 plt.ylabel('Position [m]')
 plt.legend()
 plt.grid()
-plt.savefig("plots/simple-pid-position.png")
+plt.savefig("plots/simple-pid-position-linear.png")
 plt.close()
 
 # plot u,v,w
@@ -136,12 +136,12 @@ plt.figure(3)
 plt.plot(t, state[U][:-1], label='u')
 plt.plot(t, state[V][:-1], label='v')
 plt.plot(t, state[W][:-1], label='w')
-plt.title('Drone Velocity')
+plt.title('Drone Velocity -linear')
 plt.xlabel('Time [s]')
 plt.ylabel('Velocity [m/s]')
 plt.legend()
 plt.grid()
-plt.savefig("plots/simple-pid-velocity.png")
+plt.savefig("plots/simple-pid-velocity-linear.png")
 plt.close()
 
 # plot p,q,r
@@ -150,12 +150,12 @@ plt.figure(4)
 plt.plot(t, state[P][:-1], label='p')
 plt.plot(t, state[Q][:-1], label='q')
 plt.plot(t, state[R][:-1], label='r')
-plt.title('Drone Angular Velocity')
+plt.title('Drone Angular Velocity -linear')
 plt.xlabel('Time [s]')
 plt.ylabel('Angular Velocity [rad/s]')
 plt.legend()
 plt.grid()
-plt.savefig("plots/simple-pid-angular-velocity.png")
+plt.savefig("plots/simple-pid-angular-velocity-linear.png")
 plt.close()
 
 # plot motor speeds
@@ -165,11 +165,11 @@ plt.plot(t, motorsc[0][:-1], label='Motor 1')
 plt.plot(t, motorsc[1][:-1], label='Motor 2')
 plt.plot(t, motorsc[2][:-1], label='Motor 3')
 plt.plot(t, motorsc[3][:-1], label='Motor 4')
-plt.title('Motor Speeds')
+plt.title('Motor Speeds -linear')
 plt.xlabel('Time [s]')
 plt.ylabel('Speed [rad/s]')
 plt.legend()
 plt.grid()
-plt.savefig("plots/simple-pid-motor-speeds.png")
+plt.savefig("plots/simple-pid-motor-speeds-linear.png")
 plt.close()
 
