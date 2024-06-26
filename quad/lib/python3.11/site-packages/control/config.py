@@ -1,0 +1,360 @@
+# config.py - package defaults
+# RMM, 4 Nov 2012
+#
+# This file contains default values and utility functions for setting
+# variables that control the behavior of the control package.
+# Eventually it will be possible to read and write configuration
+# files.  For now, you can just choose between MATLAB and FBS default
+# values + tweak a few other things.
+
+
+import collections
+import warnings
+from .exception import ControlArgument
+
+__all__ = ['defaults', 'set_defaults', 'reset_defaults',
+           'use_matlab_defaults', 'use_fbs_defaults',
+           'use_legacy_defaults']
+
+# Package level default values
+_control_defaults = {
+    'control.default_dt': 0,
+    'control.squeeze_frequency_response': None,
+    'control.squeeze_time_response': None,
+    'forced_response.return_x': False,
+}
+
+
+class DefaultDict(collections.UserDict):
+    """Map names for settings from older version to their renamed ones.
+
+    If a user wants to write to an old setting, issue a warning and write to
+    the renamed setting instead. Accessing the old setting returns the value
+    from the new name.
+    """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    def __setitem__(self, key, value):
+        super().__setitem__(self._check_deprecation(key), value)
+
+    def __missing__(self, key):
+        # An old key should never have been set. If it is being accessed
+        # through __getitem__, return the value from the new name.
+        repl = self._check_deprecation(key)
+        if self.__contains__(repl):
+            return self[repl]
+        else:
+            raise KeyError(key)
+
+    # New get function for Python 3.12+ to replicate old behavior
+    def get(self, key, defval=None):
+        # If the key exists, return it
+        if self.__contains__(key):
+            return self[key]
+
+        # If not, see if it is deprecated
+        repl = self._check_deprecation(key)
+        if self.__contains__(repl):
+            return self.get(repl, defval)
+
+        # Otherwise, call the usual dict.get() method
+        return super().get(key, defval)
+
+    def _check_deprecation(self, key):
+        if self.__contains__(f"deprecated.{key}"):
+            repl = self[f"deprecated.{key}"]
+            warnings.warn(f"config.defaults['{key}'] has been renamed to "
+                          f"config.defaults['{repl}'].",
+                          FutureWarning, stacklevel=3)
+            return repl
+        else:
+            return key
+
+
+defaults = DefaultDict(_control_defaults)
+
+
+def set_defaults(module, **keywords):
+    """Set default values of parameters for a module.
+
+    The set_defaults() function can be used to modify multiple parameter
+    values for a module at the same time, using keyword arguments.
+
+    Examples
+    --------
+    >>> ct.defaults['freqplot.number_of_samples']
+    1000
+    >>> ct.set_defaults('freqplot', number_of_samples=100)
+    >>> ct.defaults['freqplot.number_of_samples']
+    100
+    >>> # do some customized freqplotting
+
+    """
+    if not isinstance(module, str):
+        raise ValueError("module must be a string")
+    for key, val in keywords.items():
+        keyname = module + '.' + key
+        if keyname not in defaults and f"deprecated.{keyname}" not in defaults:
+            raise TypeError(f"unrecognized keyword: {key}")
+        defaults[module + '.' + key] = val
+
+
+def reset_defaults():
+    """Reset configuration values to their default (initial) values.
+
+    Examples
+    --------
+    >>> ct.defaults['freqplot.number_of_samples']
+    1000
+    >>> ct.set_defaults('freqplot', number_of_samples=100)
+    >>> ct.defaults['freqplot.number_of_samples']
+    100
+
+    >>> # do some customized freqplotting
+    >>> ct.reset_defaults()
+    >>> ct.defaults['freqplot.number_of_samples']
+    1000
+
+    """
+    # System level defaults
+    defaults.update(_control_defaults)
+
+    from .freqplot import _freqplot_defaults, _nyquist_defaults
+    defaults.update(_freqplot_defaults)
+    defaults.update(_nyquist_defaults)
+
+    from .nichols import _nichols_defaults
+    defaults.update(_nichols_defaults)
+
+    from .pzmap import _pzmap_defaults
+    defaults.update(_pzmap_defaults)
+
+    from .rlocus import _rlocus_defaults
+    defaults.update(_rlocus_defaults)
+
+    from .sisotool import _sisotool_defaults
+    defaults.update(_sisotool_defaults)
+
+    from .iosys import _iosys_defaults
+    defaults.update(_iosys_defaults)
+
+    from .xferfcn import _xferfcn_defaults
+    defaults.update(_xferfcn_defaults)
+
+    from .statesp import _statesp_defaults
+    defaults.update(_statesp_defaults)
+
+    from .optimal import _optimal_defaults
+    defaults.update(_optimal_defaults)
+
+    from .timeplot import _timeplot_defaults
+    defaults.update(_timeplot_defaults)
+
+    from .phaseplot import _phaseplot_defaults
+    defaults.update(_phaseplot_defaults)
+
+
+def _get_param(module, param, argval=None, defval=None, pop=False, last=False):
+    """Return the default value for a configuration option.
+
+    The _get_param() function is a utility function used to get the value of a
+    parameter for a module based on the default parameter settings and any
+    arguments passed to the function.  The precedence order for parameters is
+    the value passed to the function (as a keyword), the value from the
+    config.defaults dictionary, and the default value `defval`.
+
+    Parameters
+    ----------
+    module : str
+        Name of the module whose parameters are being requested.
+    param : str
+        Name of the parameter value to be determeind.
+    argval : object or dict
+        Value of the parameter as passed to the function.  This can either be
+        an object or a dictionary (i.e. the keyword list from the function
+        call).  Defaults to None.
+    defval : object
+        Default value of the parameter to use, if it is not located in the
+        `config.defaults` dictionary.  If a dictionary is provided, then
+        `module.param` is used to determine the default value.  Defaults to
+        None.
+    pop : bool, optional
+        If True and if argval is a dict, then pop the remove the parameter
+        entry from the argval dict after retreiving it.  This allows the use
+        of a keyword argument list to be passed through to other functions
+        internal to the function being called.
+    last : bool, optional
+        If True, check to make sure dictionary is empy after processing.
+
+    """
+
+    # Make sure that we were passed sensible arguments
+    if not isinstance(module, str) or not isinstance(param, str):
+        raise ValueError("module and param must be strings")
+
+    # Construction the name of the key, for later use
+    key = module + '.' + param
+
+    # If we were passed a dict for the argval, get the param value from there
+    if isinstance(argval, dict):
+        val = argval.pop(param, None) if pop else argval.get(param, None)
+        if last and argval:
+            raise TypeError("unrecognized keywords: " + str(argval))
+        argval = val
+
+    # If we were passed a dict for the defval, get the param value from there
+    if isinstance(defval, dict):
+        defval = defval.get(key, None)
+
+    # Return the parameter value to use (argval > defaults > defval)
+    return argval if argval is not None else defaults.get(key, defval)
+
+
+# Set defaults to match MATLAB
+def use_matlab_defaults():
+    """Use MATLAB compatible configuration settings.
+
+    The following conventions are used:
+        * Bode plots plot gain in dB, phase in degrees, frequency in
+          rad/sec, with grids
+
+    Examples
+    --------
+    >>> ct.use_matlab_defaults()
+    >>> # do some matlab style plotting
+
+    """
+    set_defaults('freqplot', dB=True, deg=True, Hz=False, grid=True)
+
+
+# Set defaults to match FBS (Astrom and Murray)
+def use_fbs_defaults():
+    """Use `Feedback Systems <http://fbsbook.org>`_ (FBS) compatible settings.
+
+    The following conventions are used:
+        * Bode plots plot gain in powers of ten, phase in degrees,
+          frequency in rad/sec, no grid
+        * Nyquist plots use dashed lines for mirror image of Nyquist curve
+
+    Examples
+    --------
+    >>> ct.use_fbs_defaults()
+    >>> # do some FBS style plotting
+
+    """
+    set_defaults('freqplot', dB=False, deg=True, Hz=False, grid=False)
+    set_defaults('nyquist', mirror_style='--')
+
+
+def use_legacy_defaults(version):
+    """ Sets the defaults to whatever they were in a given release.
+
+    Parameters
+    ----------
+    version : string
+        Version number of the defaults desired. Ranges from '0.1' to '0.8.4'.
+
+    Examples
+    --------
+    >>> ct.use_legacy_defaults("0.9.0")
+    (0, 9, 0)
+    >>> # do some legacy style plotting
+
+    """
+    import re
+    (major, minor, patch) = (None, None, None)  # default values
+
+    # Early release tag format: REL-0.N
+    match = re.match("REL-0.([12])", version)
+    if match: (major, minor, patch) = (0, int(match.group(1)), 0)
+
+    # Early release tag format: control-0.Np
+    match = re.match("control-0.([3-6])([a-d])", version)
+    if match: (major, minor, patch) = \
+       (0, int(match.group(1)), ord(match.group(2)) - ord('a') + 1)
+
+    # Early release tag format: v0.Np
+    match = re.match("[vV]?0.([3-6])([a-d])", version)
+    if match: (major, minor, patch) = \
+       (0, int(match.group(1)), ord(match.group(2)) - ord('a') + 1)
+
+    # Abbreviated version format: vM.N or M.N
+    match = re.match("([vV]?[0-9]).([0-9])", version)
+    if match: (major, minor, patch) = \
+       (int(match.group(1)), int(match.group(2)), 0)
+
+    # Standard version format: vM.N.P or M.N.P
+    match = re.match("[vV]?([0-9]).([0-9]).([0-9])", version)
+    if match: (major, minor, patch) = \
+        (int(match.group(1)), int(match.group(2)), int(match.group(3)))
+
+    # Make sure we found match
+    if major is None or minor is None:
+        raise ValueError("Version number not recognized. Try M.N.P format.")
+
+    #
+    # Go backwards through releases and reset defaults
+    #
+    reset_defaults()            # start from a clean slate
+
+    # Version 0.9.2:
+    if major == 0 and minor < 9 or (minor == 9 and patch < 2):
+        from math import inf
+
+        # Reset Nyquist defaults
+        set_defaults('nyquist', indent_radius=0.1, max_curve_magnitude=inf,
+                     max_curve_offset=0, primary_style=['-', '-'],
+                     mirror_style=['--', '--'], start_marker_size=0)
+
+    # Version 0.9.0:
+    if major == 0 and minor < 9:
+        # switched to 'array' as default for state space objects
+        warnings.warn("NumPy matrix class no longer supported")
+
+        # switched to 0 (=continuous) as default timestep
+        set_defaults('control', default_dt=None)
+
+        # changed iosys naming conventions
+        set_defaults('iosys', state_name_delim='.',
+                     duplicate_system_name_prefix='copy of ',
+                     duplicate_system_name_suffix='',
+                     linearized_system_name_prefix='',
+                     linearized_system_name_suffix='_linearized')
+
+        # turned off _remove_useless_states
+        set_defaults('statesp', remove_useless_states=True)
+
+        # forced_response no longer returns x by default
+        set_defaults('forced_response', return_x=True)
+
+        # time responses are only squeezed if SISO
+        set_defaults('control', squeeze_time_response=True)
+
+        # switched mirror_style of nyquist from '-' to '--'
+        set_defaults('nyquist', mirror_style='-')
+
+    return (major, minor, patch)
+
+
+#
+# Utility function for processing legacy keywords
+#
+# Use this function to handle a legacy keyword that has been renamed.  This
+# function pops the old keyword off of the kwargs dictionary and issues a
+# warning.  If both the old and new keyword are present, a ControlArgument
+# exception is raised.
+#
+def _process_legacy_keyword(kwargs, oldkey, newkey, newval):
+    if kwargs.get(oldkey) is not None:
+        warnings.warn(
+            f"keyword '{oldkey}' is deprecated; use '{newkey}'",
+            DeprecationWarning)
+        if newval is not None:
+            raise ControlArgument(
+                f"duplicate keywords '{oldkey}' and '{newkey}'")
+        else:
+            return kwargs.pop(oldkey)
+    else:
+        return newval
