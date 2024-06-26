@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from simple_pid import PID
-from lib.droneState import DroneStateLinear
+from lib.droneState import DroneStateLinear, DroneState
 import json
 import time
 
@@ -48,10 +48,12 @@ t = np.linspace(Tstart, Tstop, N) # Time Vector
 
 # Initialize vectors/matrices
 state = np.zeros([12, N+1]) # State Vector
+stateLin = np.zeros([12, N+1])
 
 # State: [x, y, z, phi, theta, psi, u, v, w, p, q, r]
 
 motorsc = np.zeros([4,N+1]) # Motor Speeds
+motorscLin = np.zeros([4,N+1]) # Motor Speeds
 
 # Initial Conditions
 
@@ -60,9 +62,11 @@ pitch = 0 # Initial Pitch Angle
 
 IC = np.array([0, 0, 0, roll, pitch, 0, 0, 0, 0, 0, 0, 0])
 state[:,0] = IC
+stateLin[:,0] = IC
 
 ICmotors = np.array([0, 0, 0, 0])
 motorsc[:,0] = ICmotors
+motorscLin[:,0] = ICmotors
 
 # Convenience Variables
 X = 0
@@ -83,7 +87,7 @@ for i in t:
   del_phi = roll_pid(state[PHI][index-1])
   del_theta = pitch_pid(state[THETA][index-1])
 
-  print("Roll: ", state[PHI][index-1], "Pitch: ", state[THETA][index-1], "del_phi: ", del_phi, "del_theta: ", del_theta)
+  print("Roll: ", stateLin[PHI][index-1], "Pitch: ", stateLin[THETA][index-1], "del_phi: ", del_phi, "del_theta: ", del_theta)
 
   del_Lc = Ixx * del_phi * Tdelt
   del_Mc = Iyy * del_theta * Tdelt
@@ -94,7 +98,8 @@ for i in t:
   motorsc[:,index] = motorscI
 
   # Update drone state
-  state[:,index] = DroneStateLinear(state[:,index-1], motorscI).update()
+  state[:,index] = DroneState(state[:,index-1], motorscI).update()
+  stateLin[:,index] = DroneStateLinear(state[:,index-1], motorscI).update()
 
   index += 1
   time.sleep(Tdelt)
@@ -104,10 +109,10 @@ for i in t:
 
 # plot phi, theta, psi
 
-plt.figure(1)
-plt.plot(t, state[PHI][:-1], label='Roll')
-plt.plot(t, state[THETA][:-1], label='Pitch')
-plt.plot(t, state[PSI][:-1], label='Yaw')
+plt.figure()
+plt.plot(t, stateLin[PHI][:-1], label='Roll')
+plt.plot(t, stateLin[THETA][:-1], label='Pitch')
+plt.plot(t, stateLin[PSI][:-1], label='Yaw')
 plt.title('Drone Attitude -linear')
 plt.xlabel('Time [s]')
 plt.ylabel('Angle [rad]')
@@ -118,10 +123,10 @@ plt.close()
 
 # plot x,y,z
 
-plt.figure(2)
-plt.plot(t, state[X][:-1], label='X')
-plt.plot(t, state[Y][:-1], label='Y')
-plt.plot(t, state[Z][:-1], label='Z')
+plt.figure()
+plt.plot(t, stateLin[X][:-1], label='X')
+plt.plot(t, stateLin[Y][:-1], label='Y')
+plt.plot(t, stateLin[Z][:-1], label='Z')
 plt.title('Drone Position -linear')
 plt.xlabel('Time [s]')
 plt.ylabel('Position [m]')
@@ -132,10 +137,10 @@ plt.close()
 
 # plot u,v,w
 
-plt.figure(3)
-plt.plot(t, state[U][:-1], label='u')
-plt.plot(t, state[V][:-1], label='v')
-plt.plot(t, state[W][:-1], label='w')
+plt.figure()
+plt.plot(t, stateLin[U][:-1], label='u')
+plt.plot(t, stateLin[V][:-1], label='v')
+plt.plot(t, stateLin[W][:-1], label='w')
 plt.title('Drone Velocity -linear')
 plt.xlabel('Time [s]')
 plt.ylabel('Velocity [m/s]')
@@ -146,10 +151,10 @@ plt.close()
 
 # plot p,q,r
 
-plt.figure(4)
-plt.plot(t, state[P][:-1], label='p')
-plt.plot(t, state[Q][:-1], label='q')
-plt.plot(t, state[R][:-1], label='r')
+plt.figure()
+plt.plot(t, stateLin[P][:-1], label='p')
+plt.plot(t, stateLin[Q][:-1], label='q')
+plt.plot(t, stateLin[R][:-1], label='r')
 plt.title('Drone Angular Velocity -linear')
 plt.xlabel('Time [s]')
 plt.ylabel('Angular Velocity [rad/s]')
@@ -160,11 +165,11 @@ plt.close()
 
 # plot motor speeds
 
-plt.figure(5)
-plt.plot(t, motorsc[0][:-1], label='Motor 1')
-plt.plot(t, motorsc[1][:-1], label='Motor 2')
-plt.plot(t, motorsc[2][:-1], label='Motor 3')
-plt.plot(t, motorsc[3][:-1], label='Motor 4')
+plt.figure()
+plt.plot(t, motorscLin[0][:-1], label='Motor 1')
+plt.plot(t, motorscLin[1][:-1], label='Motor 2')
+plt.plot(t, motorscLin[2][:-1], label='Motor 3')
+plt.plot(t, motorscLin[3][:-1], label='Motor 4')
 plt.title('Motor Speeds -linear')
 plt.xlabel('Time [s]')
 plt.ylabel('Speed [rad/s]')
@@ -173,3 +178,74 @@ plt.grid()
 plt.savefig("plots/simple-pid-motor-speeds-linear.png")
 plt.close()
 
+## Nonlinear
+##############################################33
+
+plt.figure()
+plt.plot(t, state[PHI][:-1], label='Roll')
+plt.plot(t, state[THETA][:-1], label='Pitch')
+plt.plot(t, state[PSI][:-1], label='Yaw')
+plt.title('Drone Attitude')
+plt.xlabel('Time [s]')
+plt.ylabel('Angle [rad]')
+plt.legend()
+plt.grid()
+plt.savefig("plots/simple-pid-attitude.png")
+plt.close()
+
+# plot x,y,z
+
+plt.figure()
+plt.plot(t, state[X][:-1], label='X')
+plt.plot(t, state[Y][:-1], label='Y')
+plt.plot(t, state[Z][:-1], label='Z')
+plt.title('Drone Position')
+plt.xlabel('Time [s]')
+plt.ylabel('Position [m]')
+plt.legend()
+plt.grid()
+plt.savefig("plots/simple-pid-position.png")
+plt.close()
+
+# plot u,v,w
+
+plt.figure()
+plt.plot(t, state[U][:-1], label='u')
+plt.plot(t, state[V][:-1], label='v')
+plt.plot(t, state[W][:-1], label='w')
+plt.title('Drone Velocity')
+plt.xlabel('Time [s]')
+plt.ylabel('Velocity [m/s]')
+plt.legend()
+plt.grid()
+plt.savefig("plots/simple-pid-velocity.png")
+plt.close()
+
+# plot p,q,r
+
+plt.figure()
+plt.plot(t, state[P][:-1], label='p')
+plt.plot(t, state[Q][:-1], label='q')
+plt.plot(t, state[R][:-1], label='r')
+plt.title('Drone Angular Velocity')
+plt.xlabel('Time [s]')
+plt.ylabel('Angular Velocity [rad/s]')
+plt.legend()
+plt.grid()
+plt.savefig("plots/simple-pid-angular-velocity.png")
+plt.close()
+
+# plot motor speeds
+
+plt.figure()
+plt.plot(t, motorsc[0][:-1], label='Motor 1')
+plt.plot(t, motorsc[1][:-1], label='Motor 2')
+plt.plot(t, motorsc[2][:-1], label='Motor 3')
+plt.plot(t, motorsc[3][:-1], label='Motor 4')
+plt.title('Motor Speeds')
+plt.xlabel('Time [s]')
+plt.ylabel('Speed [rad/s]')
+plt.legend()
+plt.grid()
+plt.savefig("plots/simple-pid-motor-speeds.png")
+plt.close()

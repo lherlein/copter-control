@@ -17,6 +17,15 @@ c2m = np.array([[-r, -r, r, r], [r, -r, -r, r], [1, -1, 1, -1]])
 
 ## TODO: find thrust and drag constants for yaw control
 
+# Estimate drag constant from surface area
+S = droneConsts['surfaceA']
+Cdmu = 0.15 # guess - small front side
+Cdu = .75 # guess - moment constant - large side 
+rho = 1.225
+mu = 0.5 * Cdmu * rho * S
+u = 0.5 * Cdu * rho * S
+
+
 ## rotation functions
 
 def r1(phi):
@@ -131,7 +140,7 @@ class DroneState:
 
     ## Attitude derivatives:
     # create transfer matrix
-    A = np.array([[1,0,0],[math.sin(phi)*math.tan(theta), math.cos(phi), math.sin(phi)*math.sec(theta)], [math.cos(phi)*math.tan(theta), -math.sin(phi), math.cos(phi)*math.sec(theta)]])
+    A = np.array([[1,0,0],[math.sin(phi)*math.tan(theta), math.cos(phi), math.sin(phi)*(1/math.cos(theta))], [math.cos(phi)*math.tan(theta), -math.sin(phi), math.cos(phi)*(1/math.cos(theta))]])
     att_dot = np.dot(A, ang_vel)
 
     ## Linear velocity derivatives:
@@ -140,7 +149,8 @@ class DroneState:
     B = np.array([-math.sin(theta), math.cos(theta)*math.sin(phi), math.cos(theta)*math.cos(phi)])
 
     # Calculate Aero Forces
-    F_aero = np.array([0, 0, 0])
+    vmag = (u**2 + v**2 + w**2)**0.5
+    F_aero = -mu*vmag*vel
 
     # Calculate Motor Forces
     F_motor = np.array([0, 0, f1 + f2 + f3 + f4])
@@ -155,14 +165,15 @@ class DroneState:
     B = np.array([1/Ixx, 1/Iyy, 1/Izz])
 
     # Calculate aero moments
-    M_aero = np.array([0, 0, 0])
+    ang_vel_mag = (p**2 + q**2 + r**2)**0.5
+    M_aero = -u*ang_vel_mag*ang_vel
 
     # Calc ang_vel_dot
     ang_vel_dot = A + B*M_aero + B*cmoments
     
 
     ## Create state_dot vector
-    state_dot = np.array([x_dot, y_dot, z_dot, phi_dot, theta_dot, psi_dot, u_dot, v_dot, w_dot, p_dot, q_dot, r_dot])
+    state_dot = np.array([pos_dot[0], pos_dot[1], pos_dot[2], att_dot[0], att_dot[1], att_dot[2], vel_dot[0], vel_dot[1], vel_dot[2], ang_vel_dot[0], ang_vel_dot[1], ang_vel_dot[2]])
 
     ## Update state
     self.state = self.state + state_dot

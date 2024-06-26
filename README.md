@@ -53,7 +53,7 @@ The control system (very basic) block diagram is:
 
 Using this control with the above gains, and the linearized plant equations, we see the following behavior of the drone for a roll disturbance of 0.1 rads.
 
-## Simple PID Control Plots
+## Simple PID Control Plots - linear
 
 <table>
   <tr>
@@ -75,10 +75,31 @@ Using this control with the above gains, and the linearized plant equations, we 
   </tr>
 </table>
 
-### Simple PID Motor Forces (Linear)
 <img src="./plots/simple-pid-motor-speeds-linear.png" alt="simple-pid-motor-forces-linear" width="800">
 
+## Simple PID Control Plots - nonLinear
 
+<table>
+  <tr>
+    <td>
+      <img src="./plots/simple-pid-attitude.png" alt="simple-pid-attitude" width="400">
+    </td>
+    <td>
+      <img src="./plots/simple-pid-angular-velocity.png" alt="simple-pid-angular-velocity" width="400">
+    </td>
+  </tr>
+  <tr>
+    <td>
+      <img src="./plots/simple-pid-velocity.png" alt="simple-pid-velocity" width="400">
+      <p>We quickly reach terminal velocity downward - no thrust control!</p>
+    </td>
+    <td>
+      <img src="./plots/simple-pid-position.png" alt="simple-pid-position" width="400">
+    </td>
+  </tr>
+</table>
+
+<img src="./plots/simple-pid-motor-speeds.png" alt="simple-pid-motor-forces" width="800">
 
 #### Thrust Control
 
