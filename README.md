@@ -16,6 +16,32 @@ Multirotor drone flight controllers must be made up of (at least) three core con
 2. thrust control
 3. yaw control
 
+### Complete Control
+
+Here are the plots for the combination of the [roll/pitch control](#rollpitch-control), [thrust control](#thrust-control) and [yaw control](#yaw-control). We can see that, after some gain tuning, the drone attitude and vertical velocity settle to zero. However, the drone Y velocity does not settle to zero - it looks as if drag doesn't act on the drone, which is very confusing.
+
+<table>
+  <tr>
+    <td>
+      <img src="./plots/simple-pid-attitude.png" alt="simple-pid-attitude" width="400">
+    </td>
+    <td>
+      <img src="./plots/simple-pid-angular-velocity.png" alt="simple-pid-angular-velocity" width="400">
+    </td>
+  </tr>
+  <tr>
+    <td>
+      <img src="./plots/simple-pid-velocity.png" alt="simple-pid-velocity" width="400">
+    </td>
+    <td>
+      <img src="./plots/simple-pid-position.png" alt="simple-pid-position" width="400">
+    </td>
+  </tr>
+</table>
+
+<img src="./plots/simple-pid-motor-speeds.png" alt="simple-pid-motor-forces" width="600">
+
+
 ### Roll/Pitch Control
 
 To start, I randomly picked gains of:
