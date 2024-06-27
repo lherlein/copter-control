@@ -27,7 +27,7 @@ simSpeed = 10
 #s = control.TransferFunction.s
 
 Kp = 1 # Proportional Gain
-Ki = 0 # Integral Time Constant
+Ki = 0.001 # Integral Time Constant
 Kd = 0.01 # Derivative Time Constant
 
 desired_z_position = -1 # Desired Z Position

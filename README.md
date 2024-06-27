@@ -18,13 +18,13 @@ Multirotor drone flight controllers must be made up of (at least) three core con
 
 ### Roll/Pitch Control
 
-To start, I randomly picked Gains of:
+To start, I randomly picked gains of:
 
 - Kp = 5
 - Ti = 100
 - Td = 10
 
-where `Ki = Kp/Ti` and `Kd = Kp/Td`.
+where `Ki = Kp/Ti` and `Kd = Kp/Td`. I then tuned the gains manually (no method) for the results.
 
 I personally re-derived the control moment to motor force transfer matrix, and used linearized and non-linearized equations of motions from my old school notes. The "plant" or state functions take the motor forces as input and output the updated state vector. The state vector, `x`, is:
 
@@ -56,6 +56,14 @@ Using this control with the above gains, and the linearized plant equations, we 
 Please __note__: Linear/non-linear refers to state model, not control scheme
 
 #### Simple PID Control Plots - linear
+
+Control Target: `Phi = 0`, `Roll=0` rads, IC: `Phi = 0`, `Roll=0.1` rads.
+
+Using gains of:
+
+- Kp = 9000
+- Ki = 100
+- Kd = 600
 
 <table>
   <tr>
@@ -108,6 +116,14 @@ Please __note__: Linear/non-linear refers to state model, not control scheme
 Here we see the difference between the linearized and non-linear models. Drag is approximated as zero when the EOM's are linearized, so there is no force opposing velocity. We can see this in the linear velocity plot when velocity does not return to zero. Additionally, there is no force of gravity in the linear equations, and as we can see the drone stays in the same Z pos. Oppositely in the non-linear plots, we see that there _is_ drag, and the Y velocity quickly returns back to zero. However, gravity is modeled, so the drone very quickly falls out of the sky. This can be seen with the drone Z position falling well into the depths of hell (positive is Inertial Down) but the Y location remaining relatively the same (it does not remain zero but the plot scale does not show it). 
 
 ### Thrust Control
+
+Control Target: `Z = -1` (body frame), IC: `Z = 0`. I am not sure why it doesn't settle to the target. 
+
+Using gains of:
+
+- Kp = 1
+- Ki = 0.001
+- Kd = 0.01
 
 #### Linear
 
