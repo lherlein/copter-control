@@ -27,6 +27,8 @@ Next Steps:
   - [Some of the Math](#some-of-the-math)
     - [PID Math](#pid-math)
     - [Equations of motion](#equations-of-motion)
+      - [Linear EOM's](#linear-eoms)
+      - [Non-linear](#non-linear-1)
     - [Numerical Integration](#numerical-integration)
   - [Env Setup](#env-setup)
 
@@ -165,8 +167,7 @@ Using gains of:
   </tr>
 </table>
 
-<img src="./plots/pitchroll/simple-pid-motor-speeds.png" alt="simple-pid-motor-forces" width="600">
-
+<img src="./plots/pitchroll/simple-pid-motor-speeds.png" alt="simple-pid-motor-forI will write these up in latex but do not know how to integrate that into markdown so will not have these for now.
 #### Linear vs Non-linear
 
 Here we see the difference between the linearized and non-linear models. Drag is approximated as zero when the EOM's are linearized, so there is no force opposing velocity. We can see this in the linear velocity plot when velocity does not return to zero. Additionally, there is no force of gravity in the linear equations, and as we can see the drone stays in the same Z pos. Oppositely in the non-linear plots, we see that there _is_ drag, and the Y velocity quickly returns back to zero. However, gravity is modeled, so the drone very quickly falls out of the sky. This can be seen with the drone Z position falling well into the depths of hell (positive is Inertial Down) but the Y location remaining relatively the same (it does not remain zero but the plot scale does not show it). 
@@ -245,7 +246,18 @@ In the pitch-roll and thrust PID controllers, I use the `simple-pid` python pack
 
 ### Equations of motion
 
-I will write these up in latex but do not know how to integrate that into markdown so will not have these for now.
+#### Linear EOM's
+
+![equation](https://latex.codecogs.com/svg.image?%5Cbegin%7Bmatrix%7D%5CDelta%5Cdot%7Bx%7D%5C%5C%5CDelta%5Cdot%7By%7D%5C%5C%5CDelta%5Cdot%7Bz%7D%5Cend%7Bmatrix%7D=%5Cbegin%7Bmatrix%7D%5CDelta%20u%5C%5C%5CDelta%20v%5C%5C%5CDelta%20w%5Cend%7Bmatrix%7D)
+
+![equation](https://latex.codecogs.com/svg.image?%5Cbegin%7Bmatrix%7D%5CDelta%5Cdot%7B%5Cphi%7D%5C%5C%5CDelta%5Cdot%7B%5Ctheta%7D%5C%5C%5CDelta%5Cdot%7B%5Cpsi%7D%5Cend%7Bmatrix%7D=%5Cbegin%7Bmatrix%7D%5CDelta%20p%5C%5C%5CDelta%20q%5C%5C%5CDelta%20r%5Cend%7Bmatrix%7D)
+
+![equation](https://latex.codecogs.com/svg.image?%5Cbegin%7Bmatrix%7D%5CDelta%5Cdot%7Bu%7D%5C%5C%5CDelta%5Cdot%7Bv%7D%5C%5C%5CDelta%5Cdot%7Bw%7D%5Cend%7Bmatrix%7D=g*%5Cbegin%7Bmatrix%7D-%5CDelta%5Ctheta%5C%5C%5CDelta%5Cphi%5C%5C0%5Cend%7Bmatrix%7D&plus;%5Cfrac%7B1%7D%7Bm%7D*%5Cbegin%7Bmatrix%7D0%5C%5C0%5C%5C%5CDelta%20Z_c%5Cend%7Bmatrix%7D)
+
+![equation](https://latex.codecogs.com/svg.image?%5Cbegin%7Bmatrix%7D%5CDelta%5Cdot%7Bp%7D%5C%5C%5CDelta%5Cdot%7Bq%7D%5C%5C%5CDelta%5Cdot%7Br%7D%5Cend%7Bmatrix%7D=%5Cbegin%7Bmatrix%7D%5CDelta%5Cfrac%7B1%7D%7BI_x%7DL_c%5C%5C%5CDelta%5Cfrac%7B1%7D%7BI_y%7DM_c%5C%5C%5CDelta%5Cfrac%7B1%7D%7BI_z%7DN_c%5Cend%7Bmatrix%7D)
+
+
+#### Non-linear
 
 ### Numerical Integration
 
