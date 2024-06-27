@@ -53,57 +53,107 @@ The control system (very basic) block diagram is:
 
 Using this control with the above gains, and the linearized plant equations, we see the following behavior of the drone for a roll disturbance of 0.1 rads.
 
+Please __note__: Linear/non-linear refers to state model, not control scheme
+
 ## Simple PID Control Plots - linear
 
 <table>
   <tr>
     <td>
-      <img src="./plots/simple-pid-attitude-linear.png" alt="simple-pid-attitude-linear" width="400">
+      <img src="./plots/pitchroll/simple-pid-attitude-linear.png" alt="simple-pid-attitude-linear" width="400">
     </td>
     <td>
-      <img src="./plots/simple-pid-angular-velocity-linear.png" alt="simple-pid-angular-velocity-linear" width="400">
+      <img src="./plots/pitchroll/simple-pid-angular-velocity-linear.png" alt="simple-pid-angular-velocity-linear" width="400">
     </td>
   </tr>
   <tr>
     <td>
-      <img src="./plots/simple-pid-velocity-linear.png" alt="simple-pid-velocity-linear" width="400">
+      <img src="./plots/pitchroll/simple-pid-velocity-linear.png" alt="simple-pid-velocity-linear" width="400">
       <p>Notice the lack of drag. Linearization!</p>
     </td>
     <td>
-      <img src="./plots/simple-pid-position-linear.png" alt="simple-pid-position-linear" width="400">
+      <img src="./plots/pitchroll/simple-pid-position-linear.png" alt="simple-pid-position-linear" width="400">
     </td>
   </tr>
 </table>
 
-<img src="./plots/simple-pid-motor-speeds-linear.png" alt="simple-pid-motor-forces-linear" width="800">
+<img src="./plots/simple-pid-motor-speeds-linear.png" alt="simple-pid-motor-forces-linear" width="600">
 
 ## Simple PID Control Plots - nonLinear
 
 <table>
   <tr>
     <td>
-      <img src="./plots/simple-pid-attitude.png" alt="simple-pid-attitude" width="400">
+      <img src="./plots/pitchroll/simple-pid-attitude.png" alt="simple-pid-attitude" width="400">
     </td>
     <td>
-      <img src="./plots/simple-pid-angular-velocity.png" alt="simple-pid-angular-velocity" width="400">
+      <img src="./plots/pitchroll/simple-pid-angular-velocity.png" alt="simple-pid-angular-velocity" width="400">
     </td>
   </tr>
   <tr>
     <td>
-      <img src="./plots/simple-pid-velocity.png" alt="simple-pid-velocity" width="400">
+      <img src="./plots/pitchroll/simple-pid-velocity.png" alt="simple-pid-velocity" width="400">
       <p>We quickly reach terminal velocity downward - no thrust control!</p>
     </td>
     <td>
-      <img src="./plots/simple-pid-position.png" alt="simple-pid-position" width="400">
+      <img src="./plots/pitchroll/simple-pid-position.png" alt="simple-pid-position" width="400">
     </td>
   </tr>
 </table>
 
-<img src="./plots/simple-pid-motor-speeds.png" alt="simple-pid-motor-forces" width="800">
+<img src="./plots/pitchroll/simple-pid-motor-speeds.png" alt="simple-pid-motor-forces" width="600">
+
+## Linear vs Non-linear
+
+Here we see the difference between the linearized and non-linear models. Drag is approximated as zero when the EOM's are linearized, so there is no force opposing velocity. We can see this in the linear velocity plot when velocity does not return to zero. Additionally, there is no force of gravity in the linear equations, and as we can see the drone stays in the same Z pos. Oppositely in the non-linear plots, we see that there _is_ drag, and the Y velocity quickly returns back to zero. However, gravity is modeled, so the drone very quickly falls out of the sky. This can be seen with the drone Z position falling well into the depths of hell (positive is Inertial Down) but the Y location remaining relatively the same (it does not remain zero but the plot scale does not show it). 
 
 #### Thrust Control
 
-not started
+###### Linear
+
+<table>
+  <tr>
+    <td>
+      <img src="./plots/thrust/simple-pid-attitude-linear-thrust.png" alt="simple-pid-attitude-linear" width="400">
+    </td>
+    <td>
+      <img src="./plots/thrust/simple-pid-angular-velocity-linear-thrust.png" alt="simple-pid-angular-velocity-linear" width="400">
+    </td>
+  </tr>
+  <tr>
+    <td>
+      <img src="./plots/thrust/simple-pid-velocity-linear-thrust.png" alt="simple-pid-velocity-linear" width="400">
+    </td>
+    <td>
+      <img src="./plots/thrust/simple-pid-position-linear-thrust.png" alt="simple-pid-position-linear" width="400">
+    </td>
+  </tr>
+</table>
+
+<img src="./plots/thrust/simple-pid-motor-speeds-linear-thrust.png" alt="simple-pid-motor-forces-linear" width="600">
+
+###### Non-Linear
+
+<table>
+  <tr>
+    <td>
+      <img src="./plots/thrust/simple-pid-attitude-thrust.png" alt="simple-pid-attitude" width="400">
+    </td>
+    <td>
+      <img src="./plots/thrust/simple-pid-angular-velocity-thrust.png" alt="simple-pid-angular-velocity" width="400">
+    </td>
+  </tr>
+  <tr>
+    <td>
+      <img src="./plots/thrust/simple-pid-velocity-thrust.png" alt="simple-pid-velocity" width="400">
+    </td>
+    <td>
+      <img src="./plots/thrust/simple-pid-position-thrust.png" alt="simple-pid-position" width="400">
+    </td>
+  </tr>
+</table>
+
+<img src="./plots/thrust/simple-pid-motor-speeds-thrust.png" alt="simple-pid-motor-forces" width="600">
 
 #### Yaw Control
 

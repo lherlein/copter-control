@@ -11,9 +11,9 @@ Izz = 4 * droneConsts['m_motor'] * droneConsts['r_z'] ** 2
 
 m_drone = 4 * droneConsts['m_motor'] + droneConsts['m_body'] + droneConsts['m_sensor'] + droneConsts['m_battery']
 
-r = droneConsts['r']
+radius = droneConsts['r']
 g = droneConsts['g']
-c2m = np.array([[-r, -r, r, r], [r, -r, -r, r], [1, -1, 1, -1]])
+c2m = np.array([[-radius, -radius, radius, radius], [radius, -radius, -radius, radius], [1, -1, 1, -1]])
 
 ## TODO: find thrust and drag constants for yaw control
 
@@ -62,7 +62,7 @@ class DroneStateLinear:
     self.motors = motors
     # Motors: [f1, f2, f3, f4] - thrust of each motor
 
-  def update(self):
+  def update(self, td):
     # Unpack state and motors
     x, y, z, phi, theta, psi, u, v, w, p, q, r = self.state
     f1, f2, f3, f4 = self.motors
@@ -95,7 +95,7 @@ class DroneStateLinear:
     state_dot = np.array([x_dot, y_dot, z_dot, phi_dot, theta_dot, psi_dot, u_dot, v_dot, w_dot, p_dot, q_dot, r_dot])
 
     # Update state
-    self.state = self.state + state_dot
+    self.state = self.state + state_dot*td
 
     return self.state
 
@@ -108,7 +108,7 @@ class DroneState:
     self.motors = motors
     # Motors: [f1, f2, f3, f4] - thrust of each motor
 
-  def update(self):
+  def update(self, td):
     # Unpack state and motors
     x, y, z, phi, theta, psi, u, v, w, p, q, r = self.state
     f1, f2, f3, f4 = self.motors
@@ -136,7 +136,7 @@ class DroneState:
 
     ## Position derivatives:
 
-    pos_dot = np.dot(r, vel)
+    pos_dot = np.dot(R, vel)
 
     ## Attitude derivatives:
     # create transfer matrix
@@ -176,6 +176,6 @@ class DroneState:
     state_dot = np.array([pos_dot[0], pos_dot[1], pos_dot[2], att_dot[0], att_dot[1], att_dot[2], vel_dot[0], vel_dot[1], vel_dot[2], ang_vel_dot[0], ang_vel_dot[1], ang_vel_dot[2]])
 
     ## Update state
-    self.state = self.state + state_dot
+    self.state = self.state + state_dot*td
 
     return self.state

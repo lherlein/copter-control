@@ -39,10 +39,10 @@ pitch_pid = PID(Kp, Kp/Ti, Kp/Td, setpoint=desired_pitch)
 # Generate the time vector
 
 Tdelt = 0.01 # Sampling Time
-roll_pid.sample_time = Tdelt
-pitch_pid.sample_time = Tdelt
+roll_pid.sample_time = Tdelt/5
+pitch_pid.sample_time = Tdelt/5
 Tstart = 0 # Start Time
-Tstop = 10 # End Time
+Tstop = 100 # End Time
 N = int((Tstop - Tstart)/Tdelt) # Number of Samples
 t = np.linspace(Tstart, Tstop, N) # Time Vector
 
@@ -111,7 +111,7 @@ for i in t:
   stateLin[:,index] = DroneStateLinear(stateLin[:,index-1], motorscI).update(Tdelt)
 
   index += 1
-  time.sleep(Tdelt)
+  time.sleep(Tdelt/5)
 
 
 ## Plotting
@@ -127,7 +127,7 @@ plt.xlabel('Time [s]')
 plt.ylabel('Angle [rad]')
 plt.legend()
 plt.grid()
-plt.savefig("plots/simple-pid-attitude-linear.png")
+plt.savefig("plots/pitchroll/simple-pid-attitude-linear.png")
 plt.close()
 
 # plot x,y,z
@@ -141,7 +141,7 @@ plt.xlabel('Time [s]')
 plt.ylabel('Position [m]')
 plt.legend()
 plt.grid()
-plt.savefig("plots/simple-pid-position-linear.png")
+plt.savefig("plots/pitchroll/simple-pid-position-linear.png")
 plt.close()
 
 # plot u,v,w
@@ -155,7 +155,7 @@ plt.xlabel('Time [s]')
 plt.ylabel('Velocity [m/s]')
 plt.legend()
 plt.grid()
-plt.savefig("plots/simple-pid-velocity-linear.png")
+plt.savefig("plots/pitchroll/simple-pid-velocity-linear.png")
 plt.close()
 
 # plot p,q,r
@@ -169,7 +169,7 @@ plt.xlabel('Time [s]')
 plt.ylabel('Angular Velocity [rad/s]')
 plt.legend()
 plt.grid()
-plt.savefig("plots/simple-pid-angular-velocity-linear.png")
+plt.savefig("plots/pitchroll/simple-pid-angular-velocity-linear.png")
 plt.close()
 
 # plot motor speeds
@@ -184,7 +184,7 @@ plt.xlabel('Time [s]')
 plt.ylabel('Speed [rad/s]')
 plt.legend()
 plt.grid()
-plt.savefig("plots/simple-pid-motor-speeds-linear.png")
+plt.savefig("plots/pitchroll/simple-pid-motor-speeds-linear.png")
 plt.close()
 
 ## Nonlinear
@@ -199,7 +199,7 @@ plt.xlabel('Time [s]')
 plt.ylabel('Angle [rad]')
 plt.legend()
 plt.grid()
-plt.savefig("plots/simple-pid-attitude.png")
+plt.savefig("plots/pitchroll/simple-pid-attitude.png")
 plt.close()
 
 # plot x,y,z
@@ -213,7 +213,7 @@ plt.xlabel('Time [s]')
 plt.ylabel('Position [m]')
 plt.legend()
 plt.grid()
-plt.savefig("plots/simple-pid-position.png")
+plt.savefig("plots/pitchroll/simple-pid-position.png")
 plt.close()
 
 # plot u,v,w
@@ -227,7 +227,7 @@ plt.xlabel('Time [s]')
 plt.ylabel('Velocity [m/s]')
 plt.legend()
 plt.grid()
-plt.savefig("plots/simple-pid-velocity.png")
+plt.savefig("plots/pitchroll/simple-pid-velocity.png")
 plt.close()
 
 # plot p,q,r
@@ -241,7 +241,7 @@ plt.xlabel('Time [s]')
 plt.ylabel('Angular Velocity [rad/s]')
 plt.legend()
 plt.grid()
-plt.savefig("plots/simple-pid-angular-velocity.png")
+plt.savefig("plots/pitchroll/simple-pid-angular-velocity.png")
 plt.close()
 
 # plot motor speeds
@@ -256,5 +256,5 @@ plt.xlabel('Time [s]')
 plt.ylabel('Speed [rad/s]')
 plt.legend()
 plt.grid()
-plt.savefig("plots/simple-pid-motor-speeds.png")
+plt.savefig("plots/pitchroll/simple-pid-motor-speeds.png")
 plt.close()
