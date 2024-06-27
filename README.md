@@ -3,7 +3,7 @@
 This repository contains code relating to my quadcopter Flight Control design. I am currently in the modeling stage - trying to pick correct gains to plug into the `simple-pid` micropython plugin running on the drone.
 
 Next Steps:
-- Solve Y velocity issue in combined control system
+- Solve remaining velocity issue in combined control system
 - Investigate and implement Yaw control
 - Investigate micropython ultra-quick matrix manipulation and math
 - Write FC script for drone control - no model response, angle data fed to control is from on-drone IMU
@@ -255,7 +255,7 @@ I chose the simplest possible numerical integration model to start - explicit Eu
 x_{k+1} = x_{k} + f(x_{k},u_{k},p)*dt
 ```
 
-Using a time step of `dt=0.1s` has worked well with this method, although I am looking into using Runge-Kutta or an implicit Euler method for more accurate analysis.
+Using a time step of `dt=0.01s` has worked well with this method, although I am looking into using Runge-Kutta or an implicit Euler method for more accurate analysis.
 
 ## Env Setup
 

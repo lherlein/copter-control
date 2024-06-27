@@ -69,8 +69,8 @@ motorscLin = np.zeros([4,N+1]) # Motor Speeds
 
 # Initial Conditions
 
-roll = 0.1 # Initial Roll Angle
-pitch = 0 # Initial Pitch Angle
+roll = 0 # Initial Roll Angle
+pitch = 0.1 # Initial Pitch Angle
 
 IC = np.array([0, 0, 0, roll, pitch, 0, 0, 0, 0, 0, 0, 0])
 state[:,0] = IC
