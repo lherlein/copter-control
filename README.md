@@ -8,7 +8,7 @@ I have began designing the control system for my drone. This is using an ideal p
 
 ...
 
-### Control Systems
+## Control Systems
 
 Multirotor drone flight controllers must be made up of (at least) three core control systems. These are:
 
@@ -16,7 +16,7 @@ Multirotor drone flight controllers must be made up of (at least) three core con
 2. thrust control
 3. yaw control
 
-#### Roll/Pitch Control
+### Roll/Pitch Control
 
 To start, I randomly picked Gains of:
 
@@ -55,7 +55,7 @@ Using this control with the above gains, and the linearized plant equations, we 
 
 Please __note__: Linear/non-linear refers to state model, not control scheme
 
-## Simple PID Control Plots - linear
+#### Simple PID Control Plots - linear
 
 <table>
   <tr>
@@ -77,9 +77,9 @@ Please __note__: Linear/non-linear refers to state model, not control scheme
   </tr>
 </table>
 
-<img src="./plots/simple-pid-motor-speeds-linear.png" alt="simple-pid-motor-forces-linear" width="600">
+<img src="./plots/pitchroll/simple-pid-motor-speeds-linear.png" alt="simple-pid-motor-forces-linear" width="600">
 
-## Simple PID Control Plots - nonLinear
+#### Simple PID Control Plots - nonLinear
 
 <table>
   <tr>
@@ -103,13 +103,13 @@ Please __note__: Linear/non-linear refers to state model, not control scheme
 
 <img src="./plots/pitchroll/simple-pid-motor-speeds.png" alt="simple-pid-motor-forces" width="600">
 
-## Linear vs Non-linear
+#### Linear vs Non-linear
 
 Here we see the difference between the linearized and non-linear models. Drag is approximated as zero when the EOM's are linearized, so there is no force opposing velocity. We can see this in the linear velocity plot when velocity does not return to zero. Additionally, there is no force of gravity in the linear equations, and as we can see the drone stays in the same Z pos. Oppositely in the non-linear plots, we see that there _is_ drag, and the Y velocity quickly returns back to zero. However, gravity is modeled, so the drone very quickly falls out of the sky. This can be seen with the drone Z position falling well into the depths of hell (positive is Inertial Down) but the Y location remaining relatively the same (it does not remain zero but the plot scale does not show it). 
 
-#### Thrust Control
+### Thrust Control
 
-###### Linear
+#### Linear
 
 <table>
   <tr>
@@ -132,7 +132,7 @@ Here we see the difference between the linearized and non-linear models. Drag is
 
 <img src="./plots/thrust/simple-pid-motor-speeds-linear-thrust.png" alt="simple-pid-motor-forces-linear" width="600">
 
-###### Non-Linear
+#### Non-Linear
 
 <table>
   <tr>
@@ -155,9 +155,35 @@ Here we see the difference between the linearized and non-linear models. Drag is
 
 <img src="./plots/thrust/simple-pid-motor-speeds-thrust.png" alt="simple-pid-motor-forces" width="600">
 
-#### Yaw Control
+#### Linear vs Non-linear
+
+Notice that the thrust control only works with the non-linear equations, as gravity is modeled here.
+
+### Yaw Control
 
 not started - need magnetometer or some other way to determine yaw from start position
+
+## Some of the Math
+
+### PID Math
+
+If you want to see a couple of different ways to model PID systems explicitly, look at the scripts in `src/examples/`. The `sample-pid.py` script uses an explicitly solved ODE function (the PID ODE) to control a simple step function. The `transfer-function-example.py` script uses the python `control` package to generate a transfer function and control a step function.
+
+In the pitch-roll and thrust PID controllers, I use the `simple-pid` python package to generate the drive value. This cuts out dependencies in order to run efficiently in micro-python. 
+
+### Equations of motion
+
+I will write these up in latex but do not know how to integrate that into markdown so will not have these for now.
+
+### Numerical Integration
+
+I chose the simplest possible numerical integration model to start - explicit Euler:
+
+```
+x_{k+1} = x_{k} + f(x_{k},u_{k},p)*dt
+```
+
+Using a time step of `dt=0.1s` has worked well with this method, although I am looking into using Runge-Kutta or an implicit Euler method for more accurate analysis.
 
 ## Env Setup
 

@@ -22,29 +22,33 @@ c2m = np.array([[-r, -r, r, r], [r, -r, -r, r], [1, -1, 1, -1]])
 
 ## Simulation Parameters
 
+simSpeed = 10
+
 #s = control.TransferFunction.s
 
-Kp = 5 # Proportional Gain
-Ti = 100 # Integral Time Constant
-Td = 10 # Derivative Time Constant
+Kp = 9000 # Proportional Gain
+Ki = 100 # Integral Time Constant
+Kd = 600 # Derivative Time Constant
 
 desired_roll = 0 # Desired Roll Angle
 desired_pitch = 0 # Desired Pitch Angle
 
-roll_pid = PID(Kp, Kp/Ti, Kp/Td, setpoint=desired_roll)
-pitch_pid = PID(Kp, Kp/Ti, Kp/Td, setpoint=desired_pitch)
+roll_pid = PID(Kp, Ki, Kd, setpoint=desired_roll)
+pitch_pid = PID(Kp, Ki, Kd, setpoint=desired_pitch)
 
 #G = Kp * (1 + (1/(Ti*s)) + Td*s) # PID Transfer Function
 
 # Generate the time vector
 
 Tdelt = 0.01 # Sampling Time
-roll_pid.sample_time = Tdelt/5
-pitch_pid.sample_time = Tdelt/5
+roll_pid.sample_time = Tdelt/simSpeed
+pitch_pid.sample_time = Tdelt/simSpeed
 Tstart = 0 # Start Time
-Tstop = 100 # End Time
+Tstop = 10 # End Time
 N = int((Tstop - Tstart)/Tdelt) # Number of Samples
 t = np.linspace(Tstart, Tstop, N) # Time Vector
+
+print("Simulation will take: ", N*Tdelt/simSpeed, " seconds")
 
 # Initialize vectors/matrices
 state = np.zeros([12, N+1]) # State Vector
@@ -111,7 +115,7 @@ for i in t:
   stateLin[:,index] = DroneStateLinear(stateLin[:,index-1], motorscI).update(Tdelt)
 
   index += 1
-  time.sleep(Tdelt/5)
+  time.sleep(Tdelt/simSpeed)
 
 
 ## Plotting
@@ -179,9 +183,9 @@ plt.plot(t, motorscLin[0][:-1], label='Motor 1')
 plt.plot(t, motorscLin[1][:-1], label='Motor 2')
 plt.plot(t, motorscLin[2][:-1], label='Motor 3')
 plt.plot(t, motorscLin[3][:-1], label='Motor 4')
-plt.title('Motor Speeds -linear')
+plt.title('Motor Force -linear')
 plt.xlabel('Time [s]')
-plt.ylabel('Speed [rad/s]')
+plt.ylabel('Force [N]')
 plt.legend()
 plt.grid()
 plt.savefig("plots/pitchroll/simple-pid-motor-speeds-linear.png")
@@ -251,9 +255,9 @@ plt.plot(t, motorsc[0][:-1], label='Motor 1')
 plt.plot(t, motorsc[1][:-1], label='Motor 2')
 plt.plot(t, motorsc[2][:-1], label='Motor 3')
 plt.plot(t, motorsc[3][:-1], label='Motor 4')
-plt.title('Motor Speeds')
+plt.title('Motor Force')
 plt.xlabel('Time [s]')
-plt.ylabel('Speed [rad/s]')
+plt.ylabel('Force [N]')
 plt.legend()
 plt.grid()
 plt.savefig("plots/pitchroll/simple-pid-motor-speeds.png")

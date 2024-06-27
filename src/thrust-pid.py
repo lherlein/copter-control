@@ -22,26 +22,30 @@ c2m = np.array([[-r, -r, r, r], [r, -r, -r, r], [1, -1, 1, -1]])
 
 ## Simulation Parameters
 
+simSpeed = 10
+
 #s = control.TransferFunction.s
 
 Kp = 1 # Proportional Gain
-Ti = 10 # Integral Time Constant
-Td = .5 # Derivative Time Constant
+Ki = 0 # Integral Time Constant
+Kd = 0.01 # Derivative Time Constant
 
-desired_z_position = 0 # Desired Z Position
+desired_z_position = -1 # Desired Z Position
 
-thrust_pid = PID(Kp, Kp/Ti, Kp/Td, setpoint=desired_z_position)
+thrust_pid = PID(Kp, Ki, Kd, setpoint=desired_z_position)
 
 #G = Kp * (1 + (1/(Ti*s)) + Td*s) # PID Transfer Function
 
 # Generate the time vector
 
 Tdelt = 0.01 # Sampling Time
-thrust_pid.sample_time = Tdelt/10
+thrust_pid.sample_time = Tdelt/simSpeed
 Tstart = 0 # Start Time
 Tstop = 10 # End Time
 N = int((Tstop - Tstart)/Tdelt) # Number of Samples
 t = np.linspace(Tstart, Tstop, N) # Time Vector
+
+print("Simulation will take: ", N*Tdelt/simSpeed, " seconds")
 
 # Initialize vectors/matrices
 state = np.zeros([12, N+1]) # State Vector
@@ -98,10 +102,10 @@ for i in t:
   state[:,index] = DroneState(state[:,index-1], motorscI).update(Tdelt)
   stateLin[:,index] = DroneStateLinear(stateLin[:,index-1], motorscI).update(Tdelt)
 
-  print("del_thrust: ", del_thrust, "Zc: ", Zc, "Z: ", state[Z][index-1])
+  #print("del_thrust: ", del_thrust, "Zc: ", Zc, "Z: ", state[Z][index-1])
 
   index += 1
-  time.sleep(Tdelt/10)
+  time.sleep(Tdelt/simSpeed)
 
 
 ## Plotting
