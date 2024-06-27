@@ -1,5 +1,35 @@
 # Copter Control
 
+This repository contains code relating to my quadcopter Flight Control design. I am currently in the modeling stage - trying to pick correct gains to plug into the `simple-pid` micropython plugin running on the drone.
+
+Next Steps:
+- Solve Y velocity issue in combined control system
+- Investigate and implement Yaw control
+- Investigate micropython ultra-quick matrix manipulation and math
+- Write FC script for drone control - no model response, angle data fed to control is from on-drone IMU
+
+## Table of Contents
+- [Copter Control](#copter-control)
+  - [Table of Contents](#table-of-contents)
+  - [Control System Design](#control-system-design)
+    - [PID Control](#pid-control)
+  - [Control Systems](#control-systems)
+    - [Complete Control](#complete-control)
+    - [Roll/Pitch Control](#rollpitch-control)
+      - [Simple PID Control Plots - linear](#simple-pid-control-plots---linear)
+      - [Simple PID Control Plots - nonLinear](#simple-pid-control-plots---nonlinear)
+      - [Linear vs Non-linear](#linear-vs-non-linear)
+    - [Thrust Control](#thrust-control)
+      - [Linear](#linear)
+      - [Non-Linear](#non-linear)
+      - [Linear vs Non-linear](#linear-vs-non-linear-1)
+    - [Yaw Control](#yaw-control)
+  - [Some of the Math](#some-of-the-math)
+    - [PID Math](#pid-math)
+    - [Equations of motion](#equations-of-motion)
+    - [Numerical Integration](#numerical-integration)
+  - [Env Setup](#env-setup)
+
 ## Control System Design
 
 I have began designing the control system for my drone. This is using an ideal physical model for the drone (exluding the battery-motor relationship). Using the python `simple-pid` plugin to generate the `delta` of the control variable and feeding that into both a linearized and non-linearized ideal physical quadcopter model to simulate the phsyical response of the controled motor movement. 
