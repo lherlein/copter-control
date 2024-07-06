@@ -9,6 +9,7 @@ This repository contains all pertinent work for my custom quadcopter Flight Cont
   - [Flight Controller Components](#flight-controller-components)
   - [Hardware/Software List](#hardwaresoftware-list)
   - [Design](#design)
+    - [Env Setup](#env-setup)
 
 ## Flight Controller Components
 
@@ -51,3 +52,14 @@ Micropython and Thonny have been chosen in the short term for ease of setup and 
 ## Design
 
 <img src="./diagrams/drone-design.svg" alt="Drone Design Block Diagram" width="800">
+
+
+### Env Setup
+
+```
+source quad/bin/activate
+```
+
+```
+deactivate
+```

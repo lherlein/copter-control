@@ -30,7 +30,6 @@ Control System Next Steps:
       - [Linear EOM's](#linear-eoms)
       - [Non-linear](#non-linear-1)
     - [Numerical Integration](#numerical-integration)
-  - [Env Setup](#env-setup)
 
 ## Control System Design
 
@@ -268,13 +267,3 @@ x_{k+1} = x_{k} + f(x_{k},u_{k},p)*dt
 ```
 
 Using a time step of `dt=0.01s` has worked well with this method, although I am looking into using Runge-Kutta or an implicit Euler method for more accurate analysis.
-
-## Env Setup
-
-```
-source quad/bin/activate
-```
-
-```
-deactivate
-```
