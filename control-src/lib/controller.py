@@ -63,8 +63,12 @@ class PID:
         self._derivative = self.kd * (error - self._last_error) / time_difference
       
       # Calculate total output
-      output = self._proportional + self._integral + self._derivative
-      output = self._clamp(output, self.output_limits)
+      output_before_clamp = self._proportional + self._integral + self._derivative
+      output = self._clamp(output_before_clamp, self.output_limits)
+      
+      # Adjust integral to prevent windup
+      if output != output_before_clamp:
+        self._integral -= output - output_before_clamp
       
       # Save last error and time
       self._last_error = error
@@ -173,12 +177,14 @@ class PI:
       
       # Calculate integral term
       self._integral += self.ki * error * time_difference
-      self._integral = self._clamp(self._integral, self.output_limits)
-      
-      
+
       # Calculate total output
-      output = self._proportional + self._integral
-      output = self._clamp(output, self.output_limits)
+      output_before_clamp = self._proportional + self._integral
+      output = self._clamp(output_before_clamp, self.output_limits)
+      
+      # Adjust integral to prevent windup
+      if output != output_before_clamp:
+        self._integral -= output - output_before_clamp
       
       # Save last error and time
       self._last_error = error
