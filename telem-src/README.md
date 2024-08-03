@@ -18,9 +18,8 @@ This directory contains the work and code for the drone telemetry package.
 
 - IMU: [MPU 6050](https://invensense.tdk.com/products/motion-tracking/6-axis/mpu-6050/)
 - GPS: [Goouuu Tech GT-U7](https://www.amazon.com/Navigation-Satellite-Compatible-Microcontroller-Geekstory/dp/B07PRGBLX7)
-- Microprocessor: [Seeed Xiao RP2040](https://www.seeedstudio.com/XIAO-RP2040-v1-0-p-5026.html)
+- Microprocessor: [Pico W]
 
 ## Software
 
 - Language: [MicroPython](https://micropython.org/)
-- Compiler: [Thonny](https://thonny.org/)
