@@ -7,9 +7,8 @@ def readIMU():
   # Get IMU Data
   accelData = imu.read_accelerometer_raw()
   gyroData = imu.read_gyroscope_raw()
-  magData = imu.read_magnetometer_raw()
   barData = imu.read_barometer_raw()
-
+  magData = imu.read_magnetometer_raw()
 
   return [accelData, gyroData, barData, magData]
 

@@ -41,10 +41,6 @@ class AltIMU10:
         LIS3MDL_OUT_Z_H,  # high byte of Z value
     ]
 
-    ACC_GYRO_ADDR = 0x6b
-    MAG_ADDR = 0x1e
-    BARO_ADDR = 0x5d
-
     def __init__(self, i2c):
         self.i2c = i2c
         self._initialize_sensors()
@@ -109,9 +105,9 @@ class AltIMU10:
         return self.read_3d_sensor(LSM6DS33_ADDR, self.accel_registers)
 
     def read_gyroscope_raw(self):
-        sensor_data = self.read_3d_sensor(LSM6DS33_ADDR, self.gyro_registers)
+        return self.read_3d_sensor(LSM6DS33_ADDR, self.gyro_registers)
 
-        # Return the vector
+    def read_gyroscope_raw_calibrated(self):
         if self.is_gyro_calibrated:
             calibrated_gyro_data = sensor_data
             calibrated_gyro_data[0] -= self.gyro_cal[0]
@@ -119,7 +115,13 @@ class AltIMU10:
             calibrated_gyro_data[2] -= self.gyro_cal[2]
             return calibrated_gyro_data
         else:
-            return sensor_data
+            self.calibrate()
+            calibrated_gyro_data = sensor_data
+            calibrated_gyro_data[0] -= self.gyro_cal[0]
+            calibrated_gyro_data[1] -= self.gyro_cal[1]
+            calibrated_gyro_data[2] -= self.gyro_cal[2]
+            return calibrated_gyro_data
+
 
     def read_magnetometer_raw(self):
         return self.read_3d_sensor(LIS3MDL_ADDR, self.magnetometer_registers)
