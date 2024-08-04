@@ -4,6 +4,9 @@ import time
 
 class AltIMU10:
 
+    LPS_TEMP_OUT_L = 0x2B  # [+] Temperature output, low byte
+    LPS_TEMP_OUT_H = 0x2C  # [+] Temperature output, high byte
+
     # Output registers used by the gyroscope
     gyro_registers = [
         LSM6DS33_OUTX_L_G,  # low byte of X value
@@ -41,6 +44,13 @@ class AltIMU10:
         LIS3MDL_OUT_Z_H,  # high byte of Z value
     ]
 
+    # Output registers used by the temperature sensor
+    lpsTempRegisters = [
+        LPS_TEMP_OUT_L, # low byte of temperature value
+        LPS_TEMP_OUT_H, # high byte of temperature value
+    ]
+
+
     def __init__(self, i2c):
         self.i2c = i2c
         self._initialize_sensors()
@@ -49,11 +59,13 @@ class AltIMU10:
         self.gyro_cal = [0, 0, 0]
         
         self.is_gyro_calibrated = False
-        #self.calibrate()
+        self.calibrate()
+
+        self.sea_level_pressure = 1013.25
 
     def _initialize_sensors(self):
         # Initialize accelerometer and gyroscope
-        self._write_register(LSM6DS33_ADDR, LSM6DS33_CTRL2_G, bytes(0x58))  # CTRL_REG1_G (power up gyroscope)
+        self._write_register(LSM6DS33_ADDR, LSM6DS33_CTRL2_G, 0x58)  # CTRL_REG1_G (power up gyroscope)
         self._write_register(LSM6DS33_ADDR, LSM6DS33_CTRL1_XL, 0x58)  # CTRL_REG6_XL (power up accelerometer)
         
         # Initialize magnetometer
@@ -104,10 +116,21 @@ class AltIMU10:
     def read_accelerometer_raw(self):
         return self.read_3d_sensor(LSM6DS33_ADDR, self.accel_registers)
 
+    def read_accelerometer_g_forces(self):
+        """ Return a 3D vector of the g forces measured by the accelerometer"""
+        [x_val, y_val, z_val] = self.read_accelerometer_raw()
+
+        x_val = (x_val * ACCEL_CONVERSION_FACTOR) / 1000
+        y_val = (y_val * ACCEL_CONVERSION_FACTOR) / 1000
+        z_val = (z_val * ACCEL_CONVERSION_FACTOR) / 1000
+
+        return [x_val, y_val, z_val]
+
     def read_gyroscope_raw(self):
         return self.read_3d_sensor(LSM6DS33_ADDR, self.gyro_registers)
 
     def read_gyroscope_raw_calibrated(self):
+        sensor_data = self.read_gyroscope_raw()
         if self.is_gyro_calibrated:
             calibrated_gyro_data = sensor_data
             calibrated_gyro_data[0] -= self.gyro_cal[0]
@@ -122,12 +145,46 @@ class AltIMU10:
             calibrated_gyro_data[2] -= self.gyro_cal[2]
             return calibrated_gyro_data
 
+    def read_gyroscope_angular_velocity(self):
+        """ Return a 3D vector of the angular velocity measured by the gyro
+            in degrees/second.
+        """
+        gyro_data = self.read_gyroscope_raw_calibrated()
+
+        gyro_data[0] = (gyro_data[0] * GYRO_GAIN) / 1000
+        gyro_data[1] = (gyro_data[1] * GYRO_GAIN) / 1000
+        gyro_data[2] = (gyro_data[2] * GYRO_GAIN) / 1000
+
+        return gyro_data
 
     def read_magnetometer_raw(self):
         return self.read_3d_sensor(LIS3MDL_ADDR, self.magnetometer_registers)
 
     def read_barometer_raw(self):
         return self.read_1d_sensor(LPS25H_ADDR, self.barometer_registers)
+
+    def read_barometer_millibars(self):
+        """ Return the barometric pressure in millibars. """
+        pressure = self.read_barometer_raw()
+        return pressure / 4096
+
+    def read_barometer_temperature_raw(self):
+        return self._getSensorRawLoHi1(LPS25H_ADDR, self.lpsTempRegisters)
+
+    def read_barometer_altitude(self):
+        """ Return the altitude in meters based on the current barometric pressure
+            and the sea level pressure.
+        """
+        pressure = self.read_barometer_millibars()
+        return 44330 * (1 - (pressure / self.sea_level_pressure) ** 0.1903)
+
+    def set_barometer_sea_level_pressure(self, pressure):
+        self.sea_level_pressure = pressure
+
+    def read_barometer_temperature_celcius(self):
+        """ Return the temperature in degrees Celsius. """
+        raw_temp = self.read_barometer_temperature_raw()
+        return 42.5 + raw_temp / 480.0
 
     def read_3d_sensor(self, address, registers):
         """ Return a vector with the combined raw signed 16 bit values
@@ -203,7 +260,7 @@ class AltIMU10:
         combined = self.combine_xlo_lo_hi(xlo_byte, lo_byte, hi_byte)
         return combined if combined < 8388608 else (combined - 16777216)
 
-    def calibrate(self, iterations=500):
+    def calibrate(self, iterations=1000):
         """ Calibrate the gyro's raw values."""
         print('Calibrating Gryo and Accelerometer...')
 

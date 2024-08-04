@@ -1,9 +1,10 @@
 from machine import Pin, I2C, PWM, UART
 from lib.controller import PI, PID
 from lib.altimu import AltIMU10
+from lib.fusion import Fusion
 import time
 import math
-from machine import Timer
+import uasyncio
 
 def calibrateSensors():
   phiNormal = 0
@@ -25,25 +26,42 @@ def calibrateSensors():
 
   return [phiNormal/N, thetaNormal/N, gyroX/N, gyroY/N, gyroZ/N]
 
+def getMagData():
+  magData = imu.read_magnetometer_raw()
+  return tuple(magData)
+
+def CalibrateStopFunction():
+  uasyncio.sleep(5)
+  return True
+
+def calibrateBarometer():
+  # Average N readings
+  print("Calibrating Barometer")
+  N = 100
+  barData = 0
+  for i in range(N):
+    millibars = imu.read_barometer_millibars()
+    barData += millibars
+    time.sleep_ms(10)
+  imu.set_barometer_sea_level_pressure(barData/N)
+  print("Barometer Calibrated")
+
+def calibrateFusion():
+  # Calibrate fusion
+  print("Calibrating Fuse")
+  fuse.calibrate(getMagData, CalibrateStopFunction)
+  print("Fuse Calibrated")
+
+
 def readIMU():
   # Get IMU Data
-  accelData = lsm6ds33.get_accelerometer_g_forces()
-  gyroData = lsm6ds33.get_gyro_angular_velocity()
+  accelData = imu.read_accelerometer_g_forces()
+  gyroData = imu.read_gyroscope_angular_velocity()
+  barData = imu.read_barometer_altitude()
+  magData = imu.read_magnetometer_raw()
+  #temp = imu.read_barometer_temperature_celcius() # Temp doesn't work
 
-  barData = lps25h.getAltitude()
-
-  magData = lis3mdl.get_magnetometer_raw()
-
-
-  return [accelData, gyroData, barData, magData]
-
-def readBMP():
-  # Get BMP Data
-  pressure = bmp.pressure
-  altitude = bmp.altitude
-  temperature = bmp.temperature
-
-  return [pressure, altitude, temperature]
+  return [tuple(accelData), tuple(gyroData), barData, tuple(magData)]
 
 def calcAngles(imuData): # Not entirely sure this will work when in flight
 
@@ -96,17 +114,15 @@ def gyro2thrust(rate):
   angleRatio = resultingAngle / deg2rad(max_control_angle)
   return rateRatio * 100
 
-  
 # Define some constants
 
 THROTTLE_TEST_ENABLED = False
 FIND_HOVER_THRUST = False
-CONTROL_FREQUENCY = 500 # Hz
+CONTROL_FREQUENCY = 50 # Hz
 CONTROL_PERIOD = 1/CONTROL_FREQUENCY # seconds
 THRUST_GOVERNANCE = 80 # percent, so that control thrust has room to maneuver 
 max_control_angle = 60
 thrust_min_pulse = 1000
-servo_middle_pulse = 1500
 pwm_freq = 50
 
 # Define pins
@@ -146,33 +162,26 @@ motorBL_pwm = PWM(motorBL_pin)
 motorBR_pwm = PWM(motorBR_pin)
 
 # I2C
-i2c_imu = I2C(0, scl=mpu_scl, sda=mpu_sda)
+i2c_imu = I2C(0, scl=imu_scl, sda=imu_sda)
 
 # UART
-
 uart = UART(0, baudrate=115200, rx=uart_rx, tx=uart_tx)
 
 # Define Sensors
 print("Waking up sensors...")
+imu = AltIMU10(i2c_imu)
+imu._initialize_sensors()
 
-accAndGyro = LSM6DS33(i2c_imu)
-bar = LPS25H(i2c_imu)
-mag = LIS3MDL(i2c_imu)
+# Set up Fusion
+fuse = Fusion()
 
-# Wake up sensors
-accAndGyro.enable()
-bar.enable()
-mag.enable()
+# Calibrate sensors+fusion
+print("Calibrating sensors, hold them still...")
+calibrateFusion()
+calibrateBarometer()
+calibrationData = calibrateSensors()
 
 print("Sensors ready.")
-
-# Calibrate sensors
-print("Calibrating sensors, hold them still...")
-
-accAndGyro.calibrate()
-
-#[phiNormal, thetaNormal, gyroXnorm, gyroYnorm, gyroZnorm] = calibrateSensors()
-#print("Sensors calibrated for: phiNormal: ", phiNormal, " thetaNormal: ", thetaNormal)
 
 # Initialize PID controllers
 
@@ -183,7 +192,7 @@ kdPr = 0.001
 kpTh = 1
 kiTh = 0.1
 
-print("Initializing PI controllers...")
+print("Initializing PI/PID controllers...")
 
 #pitchPID = PI(kpPr, kiPr) # only control pitch and roll for now
 pitchPID = PID(kpPr, kiPr, kdPr)
@@ -234,15 +243,7 @@ if THROTTLE_TEST_ENABLED:
 
 print("Startup sequence complete.")
 
-# NEED: Ixx, Iyy, r
-
-Ixx = 0.5
-Iyy = 0.5
-
-r = 0.3
-
-# Main Loop
-
+# Set initial control values
 gyroXcontrol = 0
 gyroYcontrol = 0
 gyroZcontrol = 0
@@ -252,6 +253,11 @@ pitchPID.set_setpoint(gyroXcontrol)
 rollPID.set_setpoint(gyroYcontrol)
 
 thrustPID.set_setpoint(Z_value)
+
+# Separate gyro data from calibration data
+gyroXnorm = calibrationData[2]
+gyroYnorm = calibrationData[3]
+gyroZnorm = calibrationData[4]
 
 def ControlLoop():
   # Read sensors
@@ -359,6 +365,7 @@ def ControlLoop():
 
   print("Control thrusts: ", controlThrustFr, controlThrustFl, controlThrustBr, controlThrustBl)
 
+# Main Loop
 while True:
   start_time = time.ticks_us()
   
