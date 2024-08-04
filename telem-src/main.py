@@ -68,30 +68,32 @@ def formatNumber(value):
 
 # Define Pins
 
+IMU_SCL_PIN = 17
+IMU_SDA_PIN = 16
+
 rx_pin = Pin(1)
 tx_pin = Pin(0)
 led = Pin("LED", Pin.OUT)
 
 uart = UART(0, baudrate=115200, rx=rx_pin, tx=tx_pin)
 
+# Define I2C Pins
+mpuSDA = Pin(IMU_SDA_PIN)
+mpuSCL = Pin(IMU_SCL_PIN)
+
 # Define I2C Busses
-#i2c_mpu = I2C(1, sda=mpuSDA, scl=mpuSCL)
+i2c_mpu = I2C(1, sda=mpuSDA, scl=mpuSCL)
 
 # Define Sensors
-#mpu = MPU6050(i2c_mpu)
+mpu = MPU6050(i2c_mpu)
 
 # Calibrate Everything
-#normalValues = calibrateSensors()
+normalValues = calibrateSensors()
 
 # Wake up MPU
-#mpu.wake()
+mpu.wake()
 
-# Check if connected to wifi
-
-# If not, connect to wifi
-
-# Establish UDP Client
-
+# Connect to WiFi and get IP
 ip = do_connect()
 print(ip)
 
@@ -157,6 +159,7 @@ while True:
       for i in range(5):
         uart.write("KILL")
         time.sleep_ms(10)
+        STATE = "DEAD"
     
     elif event_type == "CHANGE_STATE":
       # Change state to event_payload
@@ -192,6 +195,9 @@ while True:
     uart.write("0,0,0,0")
   elif STATE == "FLY":
     # Do nothing
+    pass
+  elif STATE == "DEAD":
+    # Do nothing -> a control message wakes the FC up
     pass
   else:
     # Do nothing

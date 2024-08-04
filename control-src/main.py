@@ -117,7 +117,6 @@ def gyro2thrust(rate):
 # Define some constants
 
 THROTTLE_TEST_ENABLED = False
-FIND_HOVER_THRUST = False
 CONTROL_FREQUENCY = 50 # Hz
 CONTROL_PERIOD = 1/CONTROL_FREQUENCY # seconds
 THRUST_GOVERNANCE = 80 # percent, so that control thrust has room to maneuver 
@@ -259,111 +258,156 @@ gyroXnorm = calibrationData[2]
 gyroYnorm = calibrationData[3]
 gyroZnorm = calibrationData[4]
 
+state = "FLY"
+
 def ControlLoop():
-  # Read sensors
-  imuData = readIMU()
+  global state
+  if state == "FLY":
+    # Read sensors
+    imuData = readIMU()
+    height = imuData[2]
 
-  # correct gyro data
-  if (gyroXnorm > 0):
-    gyroX = imuData[1][0] - gyroXnorm
-  else:
-    gyroX = imuData[1][0] + gyroXnorm
-  if (gyroYnorm > 0):
-    gyroY = imuData[1][1] - gyroYnorm
-  else:
-    gyroY = imuData[1][1] + gyroYnorm
-  if (gyroZnorm > 0):
-    gyroZ = imuData[1][2] - gyroZnorm
-  else:
-    gyroZ = imuData[1][2] + gyroZnormj
+    # correct gyro data
+    if (gyroXnorm > 0):
+      gyroX = imuData[1][0] - gyroXnorm
+    else:
+      gyroX = imuData[1][0] + gyroXnorm
+    if (gyroYnorm > 0):
+      gyroY = imuData[1][1] - gyroYnorm
+    else:
+      gyroY = imuData[1][1] + gyroYnorm
+    if (gyroZnorm > 0):
+      gyroZ = imuData[1][2] - gyroZnorm
+    else:
+      gyroZ = imuData[1][2] + gyroZnorm
 
-  # calculate pitch and roll angles
-  orientation = calcAngles(imuData)
-  phi = orientation[0]
-  theta = orientation[1]
+    # Read UART for incoming control values
+    if uart.any():
+      incoming = uart.read(30)
+      print("Incoming: ", incoming)
+      try:
+        incoming = incoming.decode('utf-8')
+      except:
+        pass
+      
+      if incoming == "KILL":
+        # Kill motors
+        motorFL_pwm.duty_ns(thrust_min_pulse*1000)
+        motorFR_pwm.duty_ns(thrust_min_pulse*1000)
+        motorBL_pwm.duty_ns(thrust_min_pulse*1000)
+        motorBR_pwm.duty_ns(thrust_min_pulse*1000)
+        state = "DEAD"
+      try:
+        # split incoming string by commas, transition each string to int
+        incoming = incoming.split(',')
+        incoming = [int(i) for i in incoming]
+        #print("Incoming: ", incoming)
+        gyroXcontrol = incoming[0]
+        gyroYcontrol = incoming[1]
+        gyroZcontrol = incoming[2]
+        Z_value = incoming[3]
+      except:
+        print("Error parsing incoming message.")
+    else:
+      pass
 
-  # Read UART for incoming control values
-  if uart.any():
-    incoming = uart.read(30)
-    #print("Incoming: ", incoming)
-    try:
-      # split incoming string by commas, transition each string to int
-      incoming = incoming.split(',')
-      incoming = [int(i) for i in incoming]
-      #print("Incoming: ", incoming)
-      gyroXcontrol = incoming[0]
-      gyroYcontrol = incoming[1]
-      gyroZcontrol = incoming[2]
-      Z_value = incoming[3]
-    except:
-      print("Error parsing incoming message.")
-  else:
-    pass
+    # Set PID setpoints
+    pitchPID.set_setpoint(gyroXcontrol)
+    rollPID.set_setpoint(gyroYcontrol)
 
-  # Set PID setpoints
-  pitchPID.set_setpoint(gyroXcontrol)
-  rollPID.set_setpoint(gyroYcontrol)
+    thrustPID.set_setpoint(Z_value)
 
-  thrustPID.set_setpoint(Z_value)
+    # Need to update Z value - how to do this?
 
-  # Need to update Z value - how to do this?
+    # Control with gyro data
+    del_phi = pitchPID.update(gyroX)
+    del_theta = rollPID.update(gyroY)
 
-  # Control with gyro data
-  del_phi = pitchPID.update(gyroX)
-  del_theta = rollPID.update(gyroY)
+    del_thrust = thrustPID.update(height)
 
-  #print("Control Signals: ", del_phi, del_theta)
+    #print("Control Signals: ", del_phi, del_theta)
 
-  # # calculate control moments
-  # Lc = Ixx * del_phi
-  # Mc = Iyy * del_theta
-  # Nc = 0
+    # # calculate control moments
+    # Lc = Ixx * del_phi
+    # Mc = Iyy * del_theta
+    # Nc = 0
+    
+    # # calculate motor thrusts
+    # controlThrustFr = (-r*Lc)+ (r*Mc) + Nc
+    # controlThrustFl = (r*Lc) + (r*Mc) - Nc
+    # controlThrustBr = (-r*Lc) - (r*Mc) - Nc
+    # controlThrustBl = (r*Lc) - (r*Mc) + Nc
+
+    ### SUPER DUMB CONTROL SCHEME
+    # del_phi is an angle value, take it as a percentage of the max control angle and set motor thrusts accordingly
+    # if >>= control angle, thrust at 100, if << control angle, thrust at 0
+    # Break into 4 quadrants, if del_phi > 0, increase thrust on front motors, decrease thrust on back motors
+    # if del_phi < 0, increase thrust on back motors, decrease thrust on front motors
+    # same for del_theta but for left and right motors
+
+    pitchControl = angle2thrust(abs(del_phi))
+    rollControl = angle2thrust(abs(del_theta))
+
+    if del_phi > 0:
+      pcFL = pitchControl/2
+      pcBL = pitchControl/2
+      pcFR = 0
+      pcBR = 0
+    if del_phi < 0:
+      pcFL = 0
+      pcBL = 0
+      pcFR = pitchControl/2
+      pcBR = pitchControl/2
+    if del_theta > 0:
+      rcFL = rollControl/2
+      rcBL = 0
+      rcFR = rollControl/2
+      rcBR = 0
+    if del_theta < 0:
+      rcFL = 0
+      rcBL = rollControl/2
+      rcFR = 0
+      rcBR = rollControl/2
+
+    # Realistically these will never equal 0
+
+    controlThrustFr = pcFR + rcFR + del_thrust
+    controlThrustFl = pcFL + rcFL + del_thrust
+    controlThrustBr = pcBR + rcBR + del_thrust
+    controlThrustBl = pcBL + rcBL + del_thrust
+
+    print("Control thrusts: ", controlThrustFr, controlThrustFl, controlThrustBr, controlThrustBl)
   
-  # # calculate motor thrusts
-  # controlThrustFr = (-r*Lc)+ (r*Mc) + Nc
-  # controlThrustFl = (r*Lc) + (r*Mc) - Nc
-  # controlThrustBr = (-r*Lc) - (r*Mc) - Nc
-  # controlThrustBl = (r*Lc) - (r*Mc) + Nc
+  else:
+    motorFL_pwm.duty_ns(thrust_min_pulse*1000)
+    motorFR_pwm.duty_ns(thrust_min_pulse*1000)
+    motorBL_pwm.duty_ns(thrust_min_pulse*1000)
+    motorBR_pwm.duty_ns(thrust_min_pulse*1000)
+    blinkOnboardLed()
 
-  ### SUPER DUMB CONTROL SCHEME
-  # del_phi is an angle value, take it as a percentage of the max control angle and set motor thrusts accordingly
-  # if >>= control angle, thrust at 100, if << control angle, thrust at 0
-  # Break into 4 quadrants, if del_phi > 0, increase thrust on front motors, decrease thrust on back motors
-  # if del_phi < 0, increase thrust on back motors, decrease thrust on front motors
-  # same for del_theta but for left and right motors
+    # Read UART for incoming control values
+    if uart.any():
+      incoming = uart.read(30)
+      #print("Incoming: ", incoming)
+      try:
+        incoming = incoming.decode('utf-8')
+      except:
+        pass
 
-  pitchControl = angle2thrust(abs(del_phi))
-  rollControl = angle2thrust(abs(del_theta))
-
-  if del_phi > 0:
-    pcFL = pitchControl/2
-    pcBL = pitchControl/2
-    pcFR = 0
-    pcBR = 0
-  if del_phi < 0:
-    pcFL = 0
-    pcBL = 0
-    pcFR = pitchControl/2
-    pcBR = pitchControl/2
-  if del_theta > 0:
-    rcFL = rollControl/2
-    rcBL = 0
-    rcFR = rollControl/2
-    rcBR = 0
-  if del_theta < 0:
-    rcFL = 0
-    rcBL = rollControl/2
-    rcFR = 0
-    rcBR = rollControl/2
-
-  # Realistically these will never equal 0
-
-  controlThrustFr = pcFR + rcFR
-  controlThrustFl = pcFL + rcFL
-  controlThrustBr = pcBR + rcBR
-  controlThrustBl = pcBL + rcBL
-
-  print("Control thrusts: ", controlThrustFr, controlThrustFl, controlThrustBr, controlThrustBl)
+      try:
+        # split incoming string by commas, transition each string to int
+        incoming = incoming.split(',')
+        incoming = [int(i) for i in incoming]
+        #print("Incoming: ", incoming)
+        gyroXcontrol = incoming[0]
+        gyroYcontrol = incoming[1]
+        gyroZcontrol = incoming[2]
+        Z_value = incoming[3]
+        state = "FLY"
+      except:
+        print("Error parsing incoming message.")
+    else:
+      pass
 
 # Main Loop
 while True:
