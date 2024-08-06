@@ -9,21 +9,25 @@ import urequests
 import ujson # For parsing incoming UDP messages
 
 def calibrateSensors():
-  sealevel = 0
   phiNormal = 0
   thetaNormal = 0
+  gyroX = 0
+  gyroY = 0
+  gyroZ = 0
   # Average N readings
   N = 100
   for i in range(N):
-    sealevel += bmp.pressure
     imuData = readIMU()
+    gyroX += imuData[1][0]
+    gyroY += imuData[1][1]
+    gyroZ += imuData[1][2]
     orientation = calcAngles(imuData)
     phiNormal += orientation[0]
     thetaNormal += orientation[1]
     time.sleep_ms(10)
 
-  bmp.sealevel = sealevel/N
-  return [phiNormal/N, thetaNormal/N, sealevel/N]
+  return [phiNormal/N, thetaNormal/N, gyroX/N, gyroY/N, gyroZ/N]
+
 
 def readIMU():
   # Get IMU Data
@@ -55,7 +59,7 @@ def do_connect():
 
 def blinkOnboardLed():
   led.on()
-  time.sleep(.2)
+  time.sleep(.02)
   led.off()
 
 def formatNumber(value):
@@ -66,23 +70,48 @@ def formatNumber(value):
         formatted_value = formatted_value[:6]
     return formatted_value
 
+def establishUdpConnection(ip, UDP_PORT):
+  try:
+    # Get addr info
+    addr_info = socket.getaddrinfo(ip, UDP_PORT)
+    addr = addr_info[0][-1]
+
+    # Establish UDP socket
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    sock.setblocking(0)
+    sock.bind(addr)
+  except:
+    time.sleep(.5)
+    establishUdpConnection(ip, UDP_PORT)
+
+  return sock, addr
+
+def s2us(s):
+  return s * 1000000
+
+def us2s(us):
+  return us / 1000000
+
 # Define Pins
+
+TELEMETRY_FREQUENCY = 100 # Hz, 10x the control frequency
+TELEMETRY_PERIOD = 1/TELEMETRY_FREQUENCY
+TELEMETRY_PERIOD_US = s2us(TELEMETRY_PERIOD)
 
 IMU_SCL_PIN = 17
 IMU_SDA_PIN = 16
 
+# Machine functions
 rx_pin = Pin(1)
 tx_pin = Pin(0)
 led = Pin("LED", Pin.OUT)
-
-uart = UART(0, baudrate=115200, rx=rx_pin, tx=tx_pin)
 
 # Define I2C Pins
 mpuSDA = Pin(IMU_SDA_PIN)
 mpuSCL = Pin(IMU_SCL_PIN)
 
-# Define I2C Busses
-i2c_mpu = I2C(1, sda=mpuSDA, scl=mpuSCL)
+uart = UART(0, baudrate=115200, rx=rx_pin, tx=tx_pin)
+i2c_mpu = I2C(0, sda=mpuSDA, scl=mpuSCL)
 
 # Define Sensors
 mpu = MPU6050(i2c_mpu)
@@ -100,24 +129,29 @@ print(ip)
 UDP_IP = ip
 UDP_PORT = 5005
 
-# Get addr info
-addr_info = socket.getaddrinfo(ip, UDP_PORT)
-addr = addr_info[0][-1]
+# Establish UDP Connection
+print("Establishing UDP Connection")
+sock, addr = establishUdpConnection(UDP_IP, UDP_PORT)
 
-# Establish UDP socket
-sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-sock.bind(addr)
+print("UDP Connection Established")
 
 # Define STATE
 STATE = "STANDBY"
 
-# Main Loop
-while True:
+# isolate normal gyro values
+gyroXnorm = normalValues[2]
+gyroYnorm = normalValues[3]
+gyroZnorm = normalValues[4]
+
+print("Entering Main Loop")
+
+def TelemetryLoop():
+  global count, STATE
   # Read IMU Data
   # Calculate Angles
-
-  imuData = readIMU()
   
+  imuData = readIMU()
+
   # Craft UDP Data message
   data_package = {
     "type": "IMU_DATA",
@@ -128,10 +162,16 @@ while True:
   }
 
   # Send UDP Data message
-  sock.sendto(ujson.dumps(data_package), addr)
+  if count % 10 == 0:
+    sock.sendto(ujson.dumps(data_package), addr)
+    count = 0
 
   # Check for incoming message
-  data, addr = sock.recvfrom(1024)
+  try:
+    data, addrRes = sock.recvfrom(1024)
+  except:
+    data = None
+    pass
   if data:
     blinkOnboardLed()
     try:
@@ -151,7 +191,7 @@ while True:
     event_type = udpMessage["type"]
     event_payload = udpMessage["payload"]
 
-    # THREE POSSIBLE INCOMING UDP EVENTS: CHANGE_STATE, UPDATE_CONTROL, KILL
+    # THREE POSSIBLE INCOMING UDP EVENTS: STATE_CHANGE, UPDATE_CONTROL, KILL
     # Data structured as: {type: ..., payload: ...}
 
     if event_type == "KILL":
@@ -161,20 +201,28 @@ while True:
         time.sleep_ms(10)
         STATE = "DEAD"
     
-    elif event_type == "CHANGE_STATE":
+    elif event_type == "STATE_CHANGE":
       # Change state to event_payload
-      payload_data = ujson.loads(event_payload)
+      #print(event_payload, type(event_payload))
+      #payload_data = ujson.loads(event_payload)
 
       # payload = {"state": "STATE"}
 
-      state = payload_data["state"]
+      #state = payload_data["state"]
+      state = event_payload["state"]
       STATE = state
+
+      if state == "FLY":
+        for i in range(5):
+          uart.write("WAKE")
+          time.sleep_ms(10)
 
     elif event_type == "UPDATE_CONTROL":
       # ONLY PROCESS IF IN FLY STATE
       if STATE == "FLY":
         # Parse control data
-        payload_data = ujson.loads(event_payload)
+        #payload_data = ujson.loads(event_payload)
+        payload_data = event_payload
 
         # payload = {"gyroX": number, "gyroY": number, "gyroZ": number, "Z": number}
 
@@ -183,7 +231,7 @@ while True:
         gyroZ = payload_data["gyroZ"]
         Z = payload_data["Z"]
         # Send control data to FC
-        uart.write("{},{},{},{}".format(formatNumber(gyroX), formatNumber(gyroY), formatNumber(gyroZ), formatNumber(Z)))
+        uart.write("{},{},{},{}".format(gyroX, gyroY, gyroZ, Z))
         # the above ensures that the data sent will never exceed 6 characters per value, including the decimal point.
         # this is because the FC reads a maximum of 30 bytes per line, and each value is 6 bytes long -> with commas, that maxes at 28 bytes
   else:
@@ -191,8 +239,9 @@ while True:
     pass
     
   # Force control values based on state - if in standby drive everything to zero
+  print(STATE)
   if STATE == "STANDBY":
-    uart.write("0,0,0,0")
+    uart.write("0.0000,0.0000,0.0000,0.0000,")
   elif STATE == "FLY":
     # Do nothing
     pass
@@ -202,3 +251,20 @@ while True:
   else:
     # Do nothing
     pass
+
+count = 1
+# Main Loop
+while True:
+  start_time = time.ticks_us()
+
+  TelemetryLoop()
+  count += 1
+
+  end_time = time.ticks_us()
+  loop_time = time.ticks_diff(end_time, start_time)
+
+  loopTimeEst = 100
+
+  # Sleep for the remainder of the telem period
+  if loop_time < TELEMETRY_PERIOD_US:
+    time.sleep_us(int(TELEMETRY_PERIOD_US - loop_time - loopTimeEst))

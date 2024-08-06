@@ -46,8 +46,7 @@ class PID:
     
     # Calculate time difference
     now = time.ticks_us()
-    time_difference = time.ticks_diff(now, self._last_time) / 1e6
-    #print(time_difference)
+    time_difference = time.ticks_diff(now, self._last_time) / 1e5
     
     if time_difference >= self.sample_time:
       # Calculate proportional term
@@ -72,8 +71,8 @@ class PID:
       
       # Save last error and time
       self._last_error = error
-      self._last_time = now
-
+      #self._last_time = now
+      self._last_time = time.ticks_us()
       #print("P: ", self._proportional, " I: ", self._integral, " D: ", self._derivative, " Output: ", output)
       
       return output

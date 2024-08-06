@@ -31,7 +31,7 @@ def getMagData():
   return tuple(magData)
 
 def CalibrateStopFunction():
-  uasyncio.sleep(5)
+  time.sleep_ms(100)
   return True
 
 def calibrateBarometer():
@@ -49,7 +49,7 @@ def calibrateBarometer():
 def calibrateFusion():
   # Calibrate fusion
   print("Calibrating Fuse")
-  fuse.calibrate(getMagData, CalibrateStopFunction)
+  fuse.calibrate(getMagData, CalibrateStopFunction, 2000)
   print("Fuse Calibrated")
 
 
@@ -89,6 +89,10 @@ def thrust2us(thrust):
   # get value between 0 and 100 representing motor thrust
   # thrust = 0 -> 1000 us
   # thrust = 100 -> 2000 us
+  if thrust < 0:
+    thrust = 0
+  if thrust > 100:
+    thrust = 100
 
   return thrust * 10 + 1000
 
@@ -100,6 +104,12 @@ def us2ns(us):
 
 def ns2us(ns):
   return ns / 1000
+
+def s2us(s):
+  return s * 1000000
+
+def us2s(us):
+  return us / 1000000
 
 def angle2thrust(angle):
   # angle in rads!!
@@ -114,12 +124,21 @@ def gyro2thrust(rate):
   angleRatio = resultingAngle / deg2rad(max_control_angle)
   return rateRatio * 100
 
+led = Pin(25, Pin.OUT)
+def blinkOnboardLed():
+  led.on()
+  time.sleep(.02)
+  led.off()
+
 # Define some constants
 
 THROTTLE_TEST_ENABLED = False
 CONTROL_FREQUENCY = 50 # Hz
 CONTROL_PERIOD = 1/CONTROL_FREQUENCY # seconds
+CONTROL_PERIOD_US = s2us(CONTROL_PERIOD) # microseconds
 THRUST_GOVERNANCE = 80 # percent, so that control thrust has room to maneuver 
+THRUST_FLOOR = 5 # percent, minimum thrust value
+CONTROL_THRUST_OFFSET = 5 # Arbitrary value, divide control thrust values by this to dilute control thrust
 max_control_angle = 60
 thrust_min_pulse = 1000
 pwm_freq = 50
@@ -184,12 +203,13 @@ print("Sensors ready.")
 
 # Initialize PID controllers
 
-kpPr = 1
-kiPr = 0.1
+kpPr = 0.1
+kiPr = 0.01
 kdPr = 0.001
 
 kpTh = 1
 kiTh = 0.1
+kdTh = 0.01
 
 print("Initializing PI/PID controllers...")
 
@@ -201,8 +221,8 @@ pitchPID.set_output_limits((-deg2rad(max_control_angle), deg2rad(max_control_ang
 rollPID = PID(kpPr, kiPr, kdPr)
 pitchPID.set_output_limits((-deg2rad(max_control_angle), deg2rad(max_control_angle)))
 
-thrustPID = PI(kpTh, kiTh)
-thrustPID.set_output_limits((0, THRUST_GOVERNANCE))
+thrustPID = PID(kpTh, kiTh, kdTh)
+thrustPID.set_output_limits((THRUST_FLOOR, THRUST_GOVERNANCE))
 
 print("PID controllers initialized.")
 
@@ -262,10 +282,18 @@ state = "FLY"
 
 def ControlLoop():
   global state
+  global gyroXcontrol
+  global gyroYcontrol
+  global gyroZcontrol
+  global Z_value
+
   if state == "FLY":
     # Read sensors
     imuData = readIMU()
     height = imuData[2]
+
+    time.sleep_us(150)
+    #print("IMU Data: ", imuData)
 
     # correct gyro data
     if (gyroXnorm > 0):
@@ -282,9 +310,9 @@ def ControlLoop():
       gyroZ = imuData[1][2] + gyroZnorm
 
     # Read UART for incoming control values
+    # Takes ~ 3 ms
     if uart.any():
-      incoming = uart.read(30)
-      print("Incoming: ", incoming)
+      incoming = uart.read()
       try:
         incoming = incoming.decode('utf-8')
       except:
@@ -300,8 +328,11 @@ def ControlLoop():
       try:
         # split incoming string by commas, transition each string to int
         incoming = incoming.split(',')
-        incoming = [int(i) for i in incoming]
-        #print("Incoming: ", incoming)
+        for i in range(len(incoming)):
+          try:
+            incoming[i] = float(incoming[i])
+          except:
+            incoming[i] = 0 # will really only trigger during standby msgs
         gyroXcontrol = incoming[0]
         gyroYcontrol = incoming[1]
         gyroZcontrol = incoming[2]
@@ -325,6 +356,8 @@ def ControlLoop():
 
     del_thrust = thrustPID.update(height)
 
+    print("Control Signals: ", del_phi, del_theta, del_thrust)
+
     #print("Control Signals: ", del_phi, del_theta)
 
     # # calculate control moments
@@ -345,39 +378,70 @@ def ControlLoop():
     # if del_phi < 0, increase thrust on back motors, decrease thrust on front motors
     # same for del_theta but for left and right motors
 
-    pitchControl = angle2thrust(abs(del_phi))
-    rollControl = angle2thrust(abs(del_theta))
+    try :
+      pitchControl = angle2thrust(abs(del_phi))
+      rollControl = angle2thrust(abs(del_theta))
+    except:
+      pitchControl = 0 # ERROR HANDLING, ideally never get here
+      rollControl = 0
 
-    if del_phi > 0:
-      pcFL = pitchControl/2
-      pcBL = pitchControl/2
-      pcFR = 0
-      pcBR = 0
-    if del_phi < 0:
+    time.sleep_us(100)
+    try:
+      if del_phi > 0:
+        pcFL = pitchControl/2
+        pcBL = pitchControl/2
+        pcFR = 0
+        pcBR = 0
+      if del_phi < 0:
+        pcFL = 0
+        pcBL = 0
+        pcFR = pitchControl/2
+        pcBR = pitchControl/2
+      if del_theta > 0:
+        rcFL = rollControl/2
+        rcBL = 0
+        rcFR = rollControl/2
+        rcBR = 0
+      if del_theta < 0:
+        rcFL = 0
+        rcBL = rollControl/2
+        rcFR = 0
+        rcBR = rollControl/2
+
+    except:
       pcFL = 0
       pcBL = 0
-      pcFR = pitchControl/2
-      pcBR = pitchControl/2
-    if del_theta > 0:
-      rcFL = rollControl/2
-      rcBL = 0
-      rcFR = rollControl/2
-      rcBR = 0
-    if del_theta < 0:
+      pcFR = 0
+      pcBR = 0
       rcFL = 0
-      rcBL = rollControl/2
+      rcBL = 0
       rcFR = 0
-      rcBR = rollControl/2
+      rcBR = 0
 
     # Realistically these will never equal 0
 
-    controlThrustFr = pcFR + rcFR + del_thrust
-    controlThrustFl = pcFL + rcFL + del_thrust
-    controlThrustBr = pcBR + rcBR + del_thrust
-    controlThrustBl = pcBL + rcBL + del_thrust
+    controlThrustFr = (pcFR + rcFR)/CONTROL_THRUST_OFFSET
+    controlThrustFl = (pcFL + rcFL)/CONTROL_THRUST_OFFSET
+    controlThrustBr = (pcBR + rcBR)/CONTROL_THRUST_OFFSET
+    controlThrustBl = (pcBL + rcBL)/CONTROL_THRUST_OFFSET
 
-    print("Control thrusts: ", controlThrustFr, controlThrustFl, controlThrustBr, controlThrustBl)
+    try:
+      thrustFL = controlThrustFl + del_thrust
+      thrustFR = controlThrustFr + del_thrust
+      thrustBL = controlThrustBl + del_thrust
+      thrustBR = controlThrustBr + del_thrust
+    except:
+      thrustFL = controlThrustFl + THRUST_FLOOR
+      thrustFR = controlThrustFr + THRUST_FLOOR
+      thrustBL = controlThrustBl + THRUST_FLOOR
+      thrustBR = controlThrustBr + THRUST_FLOOR
   
+    # Set motor thrusts
+    motorFL_pwm.duty_ns(int(thrust2ns(thrustFL)))
+    motorFR_pwm.duty_ns(int(thrust2ns(thrustFR)))
+    motorBL_pwm.duty_ns(int(thrust2ns(thrustBL)))
+    motorBR_pwm.duty_ns(int(thrust2ns(thrustBR)))
+
   else:
     motorFL_pwm.duty_ns(thrust_min_pulse*1000)
     motorFR_pwm.duty_ns(thrust_min_pulse*1000)
@@ -387,27 +451,16 @@ def ControlLoop():
 
     # Read UART for incoming control values
     if uart.any():
-      incoming = uart.read(30)
+      incoming = uart.read()
       #print("Incoming: ", incoming)
       try:
         incoming = incoming.decode('utf-8')
       except:
         pass
 
-      try:
-        # split incoming string by commas, transition each string to int
-        incoming = incoming.split(',')
-        incoming = [int(i) for i in incoming]
-        #print("Incoming: ", incoming)
-        gyroXcontrol = incoming[0]
-        gyroYcontrol = incoming[1]
-        gyroZcontrol = incoming[2]
-        Z_value = incoming[3]
+      if incoming == "WAKE":
+        print("Waking up...")
         state = "FLY"
-      except:
-        print("Error parsing incoming message.")
-    else:
-      pass
 
 # Main Loop
 while True:
@@ -416,6 +469,12 @@ while True:
   ControlLoop()
 
   end_time = time.ticks_us()
-  loop_time = time.ticks_diff(end_time, start_time)
+  loop_time_us = time.ticks_diff(end_time, start_time)
 
-  print("Loop time: ", loop_time)
+  loopTimeEst = 100
+
+  # Sleep for the remainder of the control period
+  if loop_time_us < CONTROL_PERIOD_US:
+    time.sleep_us(int(CONTROL_PERIOD_US - loop_time_us - loopTimeEst)) # subtract 50 us to account for loop time
+
+# END OF MAIN LOOP
